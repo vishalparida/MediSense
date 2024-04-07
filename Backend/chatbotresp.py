@@ -4,9 +4,6 @@ import requests
 
 app = Flask(__name__)
 
-# Set up OpenAI API credentials
-openai.api_key = ''
-
 
 def make_post_request(name):
     url = 'http://localhost:3000'
