@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Heart } from 'lucide-react'
+import { Heart } from "lucide-react"
+import ThemeToggle from "@/components/theme-toggle"
 
 export default function Navbar() {
   return (
@@ -22,6 +23,7 @@ export default function Navbar() {
           </Link>
         </nav>
         <div className="flex items-center space-x-4">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" asChild>
             <Link href="/get-started">Login</Link>
           </Button>

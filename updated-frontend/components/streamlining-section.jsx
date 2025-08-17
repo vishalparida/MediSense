@@ -1,35 +1,39 @@
-import { FolderOpen } from 'lucide-react'
-import Link from 'next/link'
+import { FolderOpen } from "lucide-react"
+import Link from "next/link"
 
 const steps = [
   {
     title: "Booth-Based Facilitation",
-    description: "We establish facilitator-equipped booths in remote areas staffed by trained personnel to assist individuals in utilizing MediSense.",
+    description:
+      "We establish facilitator-equipped booths in remote areas staffed by trained personnel to assist individuals in utilizing MediSense.",
     link: "Sign Up as a Facilitator",
     href: "/facilitator-signup",
-    highlighted: false
+    highlighted: false,
   },
   {
-    title: "Input Methods", 
-    description: "Facilitator gather patient information like symptom descriptions and medical images, ensuring comprehensive data collection for precise analysis.",
+    title: "Input Methods",
+    description:
+      "Facilitator gather patient information like symptom descriptions and medical images, ensuring comprehensive data collection for precise analysis.",
     link: "Our Input Guidelines and Methodology",
     href: "/input-guidelines",
-    highlighted: false
+    highlighted: false,
   },
   {
     title: "Problem Report Compilation",
-    description: "AI will then utilize collected data to generate detailed problem reports containing essential diagnostic information.",
+    description:
+      "AI will then utilize collected data to generate detailed problem reports containing essential diagnostic information.",
     link: "Learn More",
     href: "/problem-reports",
-    highlighted: true
+    highlighted: false,
   },
   {
     title: "Doctor Communication",
-    description: "Problem reports is then transferred to designated doctors, enabling timely diagnosis and prioritization of patients for further consultation.",
-    link: "View Our Doctor Network", 
+    description:
+      "Problem reports is then transferred to designated doctors, enabling timely diagnosis and prioritization of patients for further consultation.",
+    link: "View Our Doctor Network",
     href: "/doctor-network",
-    highlighted: false
-  }
+    highlighted: false,
+  },
 ]
 
 export default function StreamliningSection() {
@@ -42,31 +46,27 @@ export default function StreamliningSection() {
         <p className="text-muted-foreground text-lg mb-12">
           Four steps simplified procedure to streamline remote healthcare accessibility:
         </p>
-        
+
         <div className="space-y-6">
           {steps.map((step, index) => (
-            <div 
-              key={index} 
-              className={`rounded-lg border p-8 ${
-                step.highlighted 
-                  ? 'border-blue-500 bg-blue-50/50' 
-                  : 'border-gray-200 bg-white'
+            <div
+              key={index}
+              className={`rounded-lg border p-8 transition-colors ${
+                step.highlighted
+                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-400"
+                  : "border-border bg-card dark:bg-card"
               }`}
             >
               <div className="flex gap-6">
                 <div className="flex-shrink-0">
-                  <FolderOpen className="h-8 w-8 text-gray-600" />
+                  <FolderOpen className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-xl text-foreground mb-3">
-                    {step.title}
-                  </h3>
-                  <p className="text-muted-foreground text-base leading-relaxed mb-4">
-                    {step.description}
-                  </p>
-                  <Link 
+                  <h3 className="font-semibold text-xl text-foreground mb-3">{step.title}</h3>
+                  <p className="text-muted-foreground text-base leading-relaxed mb-4">{step.description}</p>
+                  <Link
                     href={step.href}
-                    className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm transition-colors"
                   >
                     {step.link}
                   </Link>

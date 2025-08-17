@@ -10,6 +10,7 @@ import PatientHistory from "@/components/PatientHistory"
 import FacilitatorProfile from "@/components/FacilitatorProfile"
 import ActiveCasesOverview from "@/components/ActiveCasesOverview"
 import NotificationSystem from "@/components/NotificationSystem"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Heart, Users, FileText, History, User, ChevronDown, LogOut, Settings } from "lucide-react"
 import Link from "next/link"
 
@@ -302,9 +303,9 @@ export default function FacilitatorDashboard() {
   const activeCases = patients.filter((p) => p.status !== "completed")
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -312,54 +313,57 @@ export default function FacilitatorDashboard() {
                 <Heart className="h-8 w-8 text-blue-600" />
                 <span className="font-bold text-xl text-blue-600">MediSense</span>
               </Link>
-              <span className="text-gray-300">|</span>
-              <span className="text-lg font-semibold text-gray-700">Facilitator Dashboard</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">Facilitator Dashboard</span>
             </div>
 
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <NotificationSystem patients={patients} />
 
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
               {/* Profile Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">Ravi Kumar</p>
-                    <p className="text-xs text-gray-500">Facilitator • F001</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Ravi Kumar</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • F001</p>
                   </div>
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 </button>
 
                 {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-50">
                     <div className="py-1">
                       <button
                         onClick={() => {
                           setActiveTab("profile")
                           setShowProfileMenu(false)
                         }}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <User className="h-4 w-4" />
                         <span>View Profile</span>
                       </button>
                       <button
                         onClick={() => setShowProfileMenu(false)}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <Settings className="h-4 w-4" />
                         <span>Settings</span>
                       </button>
-                      <hr className="my-1" />
+                      <hr className="my-1 dark:border-gray-600" />
                       <button
                         onClick={handleLogout}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Logout</span>
@@ -374,22 +378,24 @@ export default function FacilitatorDashboard() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b">
+      <nav className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
         <div className="px-6">
           <div className="flex space-x-8">
             <button
               onClick={() => setActiveTab("dashboard")}
               className={`py-4 px-2 border-b-2 font-medium text-sm ${
                 activeTab === "dashboard"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
                 <span>Active Cases</span>
                 {activeCases.length > 0 && (
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">{activeCases.length}</span>
+                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs px-2 py-1 rounded-full">
+                    {activeCases.length}
+                  </span>
                 )}
               </div>
             </button>
@@ -397,8 +403,8 @@ export default function FacilitatorDashboard() {
               onClick={() => setActiveTab("overview")}
               className={`py-4 px-2 border-b-2 font-medium text-sm ${
                 activeTab === "overview"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <div className="flex items-center space-x-2">
@@ -410,8 +416,8 @@ export default function FacilitatorDashboard() {
               onClick={() => setActiveTab("onboard")}
               className={`py-4 px-2 border-b-2 font-medium text-sm ${
                 activeTab === "onboard"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <div className="flex items-center space-x-2">
@@ -423,8 +429,8 @@ export default function FacilitatorDashboard() {
               onClick={() => setActiveTab("history")}
               className={`py-4 px-2 border-b-2 font-medium text-sm ${
                 activeTab === "history"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <div className="flex items-center space-x-2">
@@ -440,7 +446,7 @@ export default function FacilitatorDashboard() {
       {activeTab === "dashboard" && (
         <div className="flex h-[calc(100vh-140px)]">
           {/* Left Panel - Patient Queue */}
-          <div className="w-1/4 bg-white border-r overflow-y-auto">
+          <div className="w-1/4 bg-white dark:bg-gray-800 border-r dark:border-gray-700 overflow-y-auto">
             <PatientQueue patients={patients} selectedPatient={selectedPatient} onPatientSelect={handlePatientSelect} />
           </div>
 
@@ -454,11 +460,13 @@ export default function FacilitatorDashboard() {
                 onPatientUpdate={handlePatientUpdate}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                 <div className="text-center">
-                  <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-gray-600 mb-2">Select a patient to view details</p>
-                  <p className="text-sm text-gray-500">
+                  <Users className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
+                    Select a patient to view details
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Choose a patient from the queue to see their information and medical history
                   </p>
                 </div>
@@ -467,7 +475,7 @@ export default function FacilitatorDashboard() {
           </div>
 
           {/* Right Panel - Doctor Response */}
-          <div className="w-1/4 bg-white border-l overflow-y-auto">
+          <div className="w-1/4 bg-white dark:bg-gray-800 border-l dark:border-gray-700 overflow-y-auto">
             {selectedPatient && <DoctorResponsePanel patient={selectedPatient} />}
           </div>
         </div>

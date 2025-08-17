@@ -107,6 +107,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
   const handleRegenerateReport = () => {
     setIsRegeneratingReport(true)
+    // Simulate AI report regeneration
     setTimeout(() => {
       const newReport = `Updated AI Analysis: ${editedData.age}-year-old ${patient.gender.toLowerCase()} presenting with ${editedData.symptoms.toLowerCase()}. Medical history: ${editedData.medicalHistory || "No significant medical history"}. Based on updated symptoms and patient profile, recommend comprehensive medical evaluation and appropriate diagnostic workup. Report regenerated on ${new Date().toLocaleDateString()}.`
 
@@ -118,7 +119,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
       onPatientUpdate(updatedPatient)
       setIsRegeneratingReport(false)
-      setHasChanges(true) 
+      setHasChanges(true) // Mark as having changes after regeneration
     }, 3000)
   }
 
@@ -132,7 +133,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
         ...patient,
         ...editedData,
         assignedDoctor: doctor,
-        status: "awaiting_doctor", 
+        status: "awaiting_doctor", // Reset to awaiting doctor
       }
 
       onPatientUpdate(updatedPatient)
@@ -141,6 +142,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
       setShowDoctorSelection(false)
       setHasChanges(false)
 
+      // Auto-hide modal after 2 seconds
       setTimeout(() => setShowSendModal(false), 2000)
     }, 1500)
   }
@@ -148,11 +150,12 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6">
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        {/* Patient Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-4 flex-1">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="h-8 w-8 text-blue-600" />
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                <User className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
                 {isEditing ? (
@@ -162,16 +165,16 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                       onChange={(e) => handleInputChange("name", e.target.value)}
                       className="text-xl font-bold"
                     />
-                    <p className="text-gray-600">Patient ID: {patient.id}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {patient.id}</p>
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
-                    <p className="text-gray-600">Patient ID: {patient.id}</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{patient.name}</h1>
+                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {patient.id}</p>
                   </>
                 )}
 
-                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
                   {isEditing ? (
                     <div className="flex items-center space-x-2">
                       <Input
@@ -226,7 +229,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 text-sm text-gray-600">
+          <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
             <MapPin className="h-4 w-4" />
             {isEditing ? (
               <div className="flex space-x-2">
@@ -265,9 +268,9 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
         {/* Symptoms & Medical History */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-blue-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center space-x-2">
+              <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               <span>Current Symptoms</span>
             </h2>
             {isEditing ? (
@@ -278,13 +281,13 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                 className="w-full"
               />
             ) : (
-              <p className="text-gray-700 leading-relaxed">{patient.symptoms}</p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{patient.symptoms}</p>
             )}
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <FileText className="h-5 w-5 text-green-600" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center space-x-2">
+              <FileText className="h-5 w-5 text-green-600 dark:text-green-400" />
               <span>Medical History</span>
             </h2>
             {isEditing ? (
@@ -295,16 +298,16 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                 className="w-full"
               />
             ) : (
-              <p className="text-gray-700 leading-relaxed">{patient.medicalHistory}</p>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{patient.medicalHistory}</p>
             )}
           </div>
         </div>
 
         {/* Medical Images */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-              <ImageIcon className="h-5 w-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <ImageIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               <span>Medical Images</span>
             </h2>
             {isEditing && (
@@ -335,7 +338,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                 <img
                   src={image || "/placeholder.svg"}
                   alt={`Medical image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-75 transition-opacity"
+                  className="w-full h-32 object-cover rounded-lg border dark:border-gray-600 cursor-pointer hover:opacity-75 transition-opacity"
                 />
                 {isEditing && (
                   <button
@@ -359,37 +362,37 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
         </div>
 
         {/* AI Report with Regenerate */}
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-6 mb-6">
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-              <Brain className="h-5 w-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               <span>AI Medical Summary</span>
             </h2>
             <Button
               onClick={handleRegenerateReport}
               disabled={isRegeneratingReport}
               variant="outline"
-              className="bg-purple-600 text-white hover:bg-purple-700"
+              className="bg-purple-600 text-white hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600"
             >
               <Brain className={`h-4 w-4 mr-2 ${isRegeneratingReport ? "animate-spin" : ""}`} />
               {isRegeneratingReport ? "Regenerating..." : "Regenerate Report"}
             </Button>
           </div>
 
-          <div className="bg-white rounded-lg p-4 border border-purple-100">
-            <p className="text-gray-700 leading-relaxed">{patient.aiSummary}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-purple-100 dark:border-purple-700">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{patient.aiSummary}</p>
           </div>
 
           {isRegeneratingReport && (
-            <div className="mt-4 flex items-center space-x-2 text-sm text-purple-600">
+            <div className="mt-4 flex items-center space-x-2 text-sm text-purple-600 dark:text-purple-400">
               <div className="animate-pulse flex space-x-1">
-                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-purple-600 dark:bg-purple-400 rounded-full animate-bounce"></div>
                 <div
-                  className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-purple-600 dark:bg-purple-400 rounded-full animate-bounce"
                   style={{ animationDelay: "0.1s" }}
                 ></div>
                 <div
-                  className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                  className="w-2 h-2 bg-purple-600 dark:bg-purple-400 rounded-full animate-bounce"
                   style={{ animationDelay: "0.2s" }}
                 ></div>
               </div>
@@ -400,8 +403,8 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
         {/* Assigned Doctor */}
         {patient.assignedDoctor && (
-          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Assigned Doctor</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Assigned Doctor</h2>
             <div className="flex items-center space-x-4">
               <img
                 src={patient.assignedDoctor.avatar || "/placeholder.svg"}
@@ -409,8 +412,8 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                 className="w-12 h-12 rounded-full"
               />
               <div>
-                <h3 className="font-medium text-gray-900">{patient.assignedDoctor.name}</h3>
-                <p className="text-sm text-gray-600">{patient.assignedDoctor.specialty}</p>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">{patient.assignedDoctor.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{patient.assignedDoctor.specialty}</p>
               </div>
             </div>
           </div>
@@ -418,9 +421,9 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
         {/* Send to Doctor Button - Only show if changes made or report regenerated */}
         {hasChanges && (
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6">
             <div className="text-center mb-4">
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 You have made changes to the patient details or regenerated the AI report. Send the updated information
                 to a doctor for review.
               </p>
@@ -433,7 +436,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
               </Button>
             ) : (
               <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Select Doctor</h3>
+                <h3 className="font-medium text-gray-900 dark:text-gray-100">Select Doctor</h3>
                 <div className="grid md:grid-cols-2 gap-3">
                   {doctors?.map((doctor) => (
                     <div
@@ -441,8 +444,8 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                       onClick={() => setSelectedDoctor(doctor.id)}
                       className={`p-3 border rounded-lg cursor-pointer transition-all ${
                         selectedDoctor === doctor.id
-                          ? "border-blue-500 bg-blue-100"
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "border-blue-500 bg-blue-100 dark:bg-blue-900/30 dark:border-blue-400"
+                          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                       }`}
                     >
                       <div className="flex items-center space-x-3">
@@ -452,9 +455,9 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                           className="w-10 h-10 rounded-full"
                         />
                         <div>
-                          <h4 className="font-medium text-gray-900">{doctor.name}</h4>
-                          <p className="text-sm text-gray-600">{doctor.specialty}</p>
-                          <p className="text-xs text-gray-500">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100">{doctor.name}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{doctor.specialty}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500">
                             {doctor.experience} • {doctor.location}
                           </p>
                         </div>
@@ -490,13 +493,17 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
       {/* Send Confirmation Modal */}
       {showSendModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4">
             <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Send className="h-6 w-6 text-green-600" />
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Send className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Updated Case Sent Successfully!</h3>
-              <p className="text-gray-600">The updated patient case has been sent to the assigned doctor.</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Updated Case Sent Successfully!
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                The updated patient case has been sent to the assigned doctor.
+              </p>
             </div>
           </div>
         </div>

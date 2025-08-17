@@ -1,7 +1,7 @@
 "use client"
 
 import PatientCard from "./PatientCard"
-import { Search, Filter, SortAsc, SortDesc, Calendar, User, AlertTriangle } from "lucide-react"
+import { Search, ArrowUpDown, SortAsc, SortDesc, Calendar, User, AlertTriangle } from "lucide-react"
 import { useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -81,9 +81,9 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b">
+      <div className="p-4 border-b dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Patient Queue</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Patient Queue</h2>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={toggleSortOrder} className="p-2 bg-transparent">
               {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
@@ -93,23 +93,25 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
 
         {/* Search */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search patients, ID, or village..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             aria-label="Search patients"
           />
         </div>
 
         {/* View Mode Tabs */}
-        <div className="flex space-x-1 mb-4 bg-gray-100 rounded-lg p-1">
+        <div className="flex space-x-1 mb-4 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => setViewMode("all")}
             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              viewMode === "all" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              viewMode === "all"
+                ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
             }`}
           >
             All ({patients.length})
@@ -117,7 +119,9 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
           <button
             onClick={() => setViewMode("active")}
             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              viewMode === "active" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              viewMode === "active"
+                ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
             }`}
           >
             Active ({patients.filter((p) => p.status !== "completed").length})
@@ -125,7 +129,9 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
           <button
             onClick={() => setViewMode("completed")}
             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              viewMode === "completed" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+              viewMode === "completed"
+                ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
             }`}
           >
             Done ({getStatusCount("completed")})
@@ -161,7 +167,7 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
 
         {/* Sort Options */}
         <div className="flex items-center space-x-2">
-          <Filter className="h-4 w-4 text-gray-400" />
+          <ArrowUpDown className="h-4 w-4 text-gray-400 dark:text-gray-500" />
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="text-sm">
               <SelectValue placeholder="Sort by" />
@@ -195,7 +201,7 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
       {/* Patient List */}
       <div className="flex-1 overflow-y-auto">
         {filteredAndSortedPatients.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             <div className="mb-2">No patients found</div>
             <div className="text-sm">Try adjusting your search or filters</div>
           </div>
@@ -214,7 +220,7 @@ export default function PatientQueue({ patients, selectedPatient, onPatientSelec
       </div>
 
       {/* Queue Summary */}
-      <div className="p-3 border-t bg-gray-50 text-xs text-gray-600">
+      <div className="p-3 border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400">
         <div className="flex justify-between">
           <span>
             Showing {filteredAndSortedPatients.length} of {patients.length}
