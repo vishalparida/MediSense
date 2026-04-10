@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< Updated upstream
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,11 +19,27 @@ import { Users, Eye, EyeOff, Heart } from "lucide-react";
 export default function FacilitatorLogin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+=======
+import { useState } from 'react'
+import Link from "next/link"
+import { useRouter } from "next/navigation" // 1. Added useRouter
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Users, Eye, EyeOff, Heart } from 'lucide-react'
+
+const FacilitatorLogin = () => {
+  const router = useRouter() // 2. Initialized router
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState("") // 3. Added missing error state
+>>>>>>> Stashed changes
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
+<<<<<<< Updated upstream
   const handleSubmit = async (e) => {
     e.preventDefault();
     // TODO: Replace with actual API call to your backend
@@ -39,6 +56,38 @@ export default function FacilitatorLogin() {
       router.push("/facilitator");
     }
   };
+=======
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError("") // Clear previous errors on new submission
+
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 200) {
+        console.log("Login Success:", data);
+        
+        // Optional: Save your JWT token here (e.g., localStorage.setItem('token', data.token))
+        
+        // 4. Fixed navigation
+        router.push("/facilitator");
+      } else {
+        // 5. Better error handling
+        setError(data.message || "Invalid credentials"); 
+      }
+    } catch (err) {
+      setError("Failed to connect to the server. Please try again.");
+    }
+  } // 6. Removed the extra closing brace that was here
+>>>>>>> Stashed changes
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center p-4">
@@ -68,6 +117,14 @@ export default function FacilitatorLogin() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* 7. Display the error message in the UI if it exists */}
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md text-center">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
@@ -157,3 +214,5 @@ export default function FacilitatorLogin() {
     </div>
   );
 }
+
+export default FacilitatorLogin; // 8. Fixed typo
