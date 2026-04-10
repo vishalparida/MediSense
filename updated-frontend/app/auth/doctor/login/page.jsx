@@ -1,25 +1,44 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Stethoscope, Eye, EyeOff, Heart } from 'lucide-react'
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Stethoscope, Eye, EyeOff, Heart } from "lucide-react";
 
 export default function DoctorLogin() {
-  const [showPassword, setShowPassword] = useState(false)
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  })
+    email: "",
+    password: "",
+  });
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    // Handle login logic here
-    console.log('Doctor login:', formData)
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // TODO: Replace with actual API call to your backend
+    // const response = await fetch('/api/auth/doctor/login', {
+    //   method: 'POST',
+    //   body: JSON.stringify(formData)
+    // })
+    // const data = await response.json()
+
+    // For now, simulate successful authentication
+    if (formData.email && formData.password) {
+      console.log("Doctor login:", formData);
+      // Redirect to doctor dashboard after successful login
+      router.push("/doctor");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center p-4">
@@ -46,7 +65,7 @@ export default function DoctorLogin() {
               </CardDescription>
             </div>
           </CardHeader>
-          
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
@@ -56,7 +75,9 @@ export default function DoctorLogin() {
                   type="email"
                   placeholder="doctor@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                   className="h-11"
                 />
@@ -70,7 +91,9 @@ export default function DoctorLogin() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                     className="h-11 pr-10"
                   />
@@ -79,18 +102,25 @@ export default function DoctorLogin() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 bg-cyan-600 hover:bg-cyan-700">
+              <Button
+                type="submit"
+                className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
+              >
                 Login to Dashboard
               </Button>
 
               <div className="text-center">
-                <Link 
-                  href="/auth/doctor/forgot-password" 
+                <Link
+                  href="/auth/doctor/forgot-password"
                   className="text-sm text-cyan-600 hover:underline"
                 >
                   Forgot password?
@@ -101,8 +131,8 @@ export default function DoctorLogin() {
             <div className="mt-6 pt-6 border-t text-center">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
-                <Link 
-                  href="/auth/doctor/register" 
+                <Link
+                  href="/auth/doctor/register"
                   className="text-cyan-600 hover:underline font-medium"
                 >
                   Register as Doctor
@@ -115,12 +145,15 @@ export default function DoctorLogin() {
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Are you a facilitator?{" "}
-            <Link href="/auth/facilitator/login" className="text-blue-600 hover:underline">
+            <Link
+              href="/auth/facilitator/login"
+              className="text-blue-600 hover:underline"
+            >
               Login here
             </Link>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

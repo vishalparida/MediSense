@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Stethoscope, Eye, EyeOff, Heart } from 'lucide-react'
 
 export default function DoctorRegister() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -29,10 +31,29 @@ export default function DoctorRegister() {
     confirmPassword: ''
   })
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Handle registration logic here
-    console.log('Doctor registration:', formData)
+    
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      alert('Passwords do not match!')
+      return
+    }
+
+    // TODO: Replace with actual API call to your backend
+    // const response = await fetch('/api/auth/doctor/register', {
+    //   method: 'POST',
+    //   body: JSON.stringify(formData)
+    // })
+    // const data = await response.json()
+    
+    // For now, simulate successful registration
+    if (formData.email && formData.password && formData.fullName) {
+      console.log('Doctor registration:', formData)
+      // Redirect to doctor dashboard after successful registration
+      router.push('/doctor')
+    }
+  }
   }
 
   const specializations = [
