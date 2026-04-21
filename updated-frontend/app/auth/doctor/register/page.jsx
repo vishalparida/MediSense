@@ -8,13 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+// import { Textarea } from "@/components/ui/textarea" // Removed unused import
 import { Stethoscope, Eye, EyeOff, Heart } from 'lucide-react'
 
 export default function DoctorRegister() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [error, setError] = useState("") // Added error state
+  const [isLoading, setIsLoading] = useState(false) // Added loading state
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -33,27 +36,62 @@ export default function DoctorRegister() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // Validate passwords match
+    setError("") // Clear previous errors
+
+    // 1. Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!')
+      setError('Passwords do not match!')
       return
     }
 
-    // TODO: Replace with actual API call to your backend
-    // const response = await fetch('/api/auth/doctor/register', {
-    //   method: 'POST',
-    //   body: JSON.stringify(formData)
-    // })
-    // const data = await response.json()
-    
-    // For now, simulate successful registration
-    if (formData.email && formData.password && formData.fullName) {
-      console.log('Doctor registration:', formData)
-      // Redirect to doctor dashboard after successful registration
-      router.push('/doctor')
+    setIsLoading(true)
+
+    try {
+      // 2. Prepare the payload mapping frontend state to backend schema
+      const payload = {
+        role: "Doctor", // CRUCIAL: Tells backend to use the Doctor discriminator
+        fullName: formData.fullName,
+        email: formData.email,
+        phoneNumber: formData.phone, // Mapped
+        state: formData.state,
+        city: formData.city, // Doctor specific
+        medicalLicenseNumber: formData.medicalLicense, // Mapped
+        yearsOfExperience: formData.experience, // Mapped
+        specialization: formData.specialization, // Doctor specific
+        currentHospitalClinic: formData.hospital, // Mapped
+        preferredConsultationHours: formData.availability, // Mapped
+        languagesSpoken: formData.languages,
+        password: formData.password
+      }
+
+      // 3. Send request to the existing backend route
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 201) {
+        console.log("Registration successful:", data);
+        
+        // Optional: Save the JWT token
+        // localStorage.setItem("token", data.token);
+
+        // 4. Redirect to the requested dashboard
+        router.push("/doctor");
+      } else {
+        // Handle backend errors (e.g., email already taken)
+        setError(data.message || "Registration failed. Please try again.");
+      }
+    } catch (err) {
+      setError("Server connection failed. Is your backend running?");
+    } finally {
+      setIsLoading(false);
     }
-  }
   }
 
   const specializations = [
@@ -98,6 +136,14 @@ export default function DoctorRegister() {
           
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* --- ADDED ERROR DISPLAY --- */}
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md text-center">
+                  {error}
+                </div>
+              )}
+
               {/* Personal Information */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -279,8 +325,12 @@ export default function DoctorRegister() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 bg-cyan-600 hover:bg-cyan-700">
-                Register as Doctor
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
+              >
+                {isLoading ? "Registering..." : "Register as Doctor"}
               </Button>
             </form>
 

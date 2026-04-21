@@ -18,6 +18,9 @@ import { Stethoscope, Eye, EyeOff, Heart } from "lucide-react";
 export default function DoctorLogin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(""); // Added error state
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
+  
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -25,18 +28,43 @@ export default function DoctorLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Replace with actual API call to your backend
-    // const response = await fetch('/api/auth/doctor/login', {
-    //   method: 'POST',
-    //   body: JSON.stringify(formData)
-    // })
-    // const data = await response.json()
+    setError(""); // Clear previous errors
+    setIsLoading(true);
 
-    // For now, simulate successful authentication
-    if (formData.email && formData.password) {
-      console.log("Doctor login:", formData);
-      // Redirect to doctor dashboard after successful login
-      router.push("/doctor");
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 200) {
+        // Security check: Ensure a Facilitator isn't trying to log into the Doctor portal
+        if (data.role !== "Doctor") {
+          setError("Access denied. Please use the Facilitator login portal.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Doctor login successful:", data);
+        
+        // Optional: Save the JWT token securely here
+        // localStorage.setItem("token", data.token);
+
+        // Redirect to doctor dashboard
+        router.push("/doctor");
+      } else {
+        // Handle invalid password or unregistered email
+        setError(data.message || "Invalid email or password");
+      }
+    } catch (err) {
+      setError("Server connection failed. Is your backend running?");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,6 +96,14 @@ export default function DoctorLogin() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* --- ADDED ERROR DISPLAY --- */}
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md text-center">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
@@ -113,9 +149,10 @@ export default function DoctorLogin() {
 
               <Button
                 type="submit"
+                disabled={isLoading}
                 className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
               >
-                Login to Dashboard
+                {isLoading ? "Logging in..." : "Login to Dashboard"}
               </Button>
 
               <div className="text-center">

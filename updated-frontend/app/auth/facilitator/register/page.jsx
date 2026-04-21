@@ -20,13 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+// import { Textarea } from "@/components/ui/textarea"; // (Removed if unused to clear warnings)
 import { Users, Eye, EyeOff, Heart } from "lucide-react";
 
 export default function FacilitatorRegister() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState(""); // Added error state
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -43,57 +46,68 @@ export default function FacilitatorRegister() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
 
-    // Validate passwords match
+    // 1. Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
       return;
     }
 
-    // TODO: Replace with actual API call to your backend
-    // const response = await fetch('/api/auth/facilitator/register', {
-    //   method: 'POST',
-    //   body: JSON.stringify(formData)
-    // })
-    // const data = await response.json()
+    setIsLoading(true);
 
-    // For now, simulate successful registration
-    if (formData.email && formData.password && formData.fullName) {
-      console.log("Facilitator registration:", formData);
-      // Redirect to facilitator dashboard after successful registration
-      router.push("/facilitator");
+    try {
+      // 2. Prepare the exact payload the backend expects
+      const payload = {
+        role: "Facilitator", // CRUCIAL: Tells backend which model to use
+        fullName: formData.fullName,
+        email: formData.email,
+        phoneNumber: formData.phone, // Mapped to backend schema
+        state: formData.state,
+        district: formData.district,
+        villageArea: formData.village, // Mapped to backend schema
+        educationBackground: formData.education, // Mapped to backend schema
+        healthcareExperience: formData.experience, // Mapped to backend schema
+        languagesSpoken: formData.languages, // Mapped to backend schema
+        password: formData.password,
+      };
+
+      // 3. Send request to your backend
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 201) {
+        console.log("Registration successful:", data);
+        
+        // Optional: Save the token so they are immediately logged in
+        // localStorage.setItem("token", data.token);
+
+        // 4. Redirect to the dashboard (using the /mkc route you set up earlier)
+        router.push("/facilitator");
+      } else {
+        // Backend returned an error (e.g., "User already exists")
+        setError(data.message || "Registration failed. Please try again.");
+      }
+    } catch (err) {
+      setError("Server connection failed. Is your backend running?");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const indianStates = [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Jharkhand",
-    "Karnataka",
-    "Kerala",
-    "Madhya Pradesh",
-    "Maharashtra",
-    "Manipur",
-    "Meghalaya",
-    "Mizoram",
-    "Nagaland",
-    "Odisha",
-    "Punjab",
-    "Rajasthan",
-    "Sikkim",
-    "Tamil Nadu",
-    "Telangana",
-    "Tripura",
-    "Uttar Pradesh",
-    "Uttarakhand",
-    "West Bengal",
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
   ];
 
   return (
@@ -117,14 +131,21 @@ export default function FacilitatorRegister() {
                 Register as a MediSense Facilitator
               </CardTitle>
               <CardDescription className="mt-2">
-                Join our network of healthcare facilitators serving rural
-                communities
+                Join our network of healthcare facilitators serving rural communities
               </CardDescription>
             </div>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* --- ADDED ERROR DISPLAY --- */}
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md text-center">
+                  {error}
+                </div>
+              )}
+
               {/* Personal Information */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -133,9 +154,7 @@ export default function FacilitatorRegister() {
                     id="fullName"
                     placeholder="Enter your full name"
                     value={formData.fullName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, fullName: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     required
                   />
                 </div>
@@ -146,9 +165,7 @@ export default function FacilitatorRegister() {
                     type="tel"
                     placeholder="+91 98765 43210"
                     value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
                   />
                 </div>
@@ -161,9 +178,7 @@ export default function FacilitatorRegister() {
                   type="email"
                   placeholder="facilitator@example.com"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
               </div>
@@ -172,11 +187,7 @@ export default function FacilitatorRegister() {
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="state">State *</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, state: value })
-                    }
-                  >
+                  <Select onValueChange={(value) => setFormData({ ...formData, state: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
@@ -195,9 +206,7 @@ export default function FacilitatorRegister() {
                     id="district"
                     placeholder="Enter district"
                     value={formData.district}
-                    onChange={(e) =>
-                      setFormData({ ...formData, district: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, district: e.target.value })}
                     required
                   />
                 </div>
@@ -207,9 +216,7 @@ export default function FacilitatorRegister() {
                     id="village"
                     placeholder="Enter village/area"
                     value={formData.village}
-                    onChange={(e) =>
-                      setFormData({ ...formData, village: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
                     required
                   />
                 </div>
@@ -223,9 +230,7 @@ export default function FacilitatorRegister() {
                     id="education"
                     placeholder="e.g., 12th Pass, Graduate"
                     value={formData.education}
-                    onChange={(e) =>
-                      setFormData({ ...formData, education: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -234,9 +239,7 @@ export default function FacilitatorRegister() {
                     id="experience"
                     placeholder="e.g., 2 years as ASHA worker"
                     value={formData.experience}
-                    onChange={(e) =>
-                      setFormData({ ...formData, experience: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
                   />
                 </div>
               </div>
@@ -247,9 +250,7 @@ export default function FacilitatorRegister() {
                   id="languages"
                   placeholder="e.g., Hindi, English, Local dialect"
                   value={formData.languages}
-                  onChange={(e) =>
-                    setFormData({ ...formData, languages: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
                 />
               </div>
 
@@ -263,9 +264,7 @@ export default function FacilitatorRegister() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Create password"
                       value={formData.password}
-                      onChange={(e) =>
-                        setFormData({ ...formData, password: e.target.value })
-                      }
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       required
                       className="pr-10"
                     />
@@ -274,11 +273,7 @@ export default function FacilitatorRegister() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -290,27 +285,16 @@ export default function FacilitatorRegister() {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm password"
                       value={formData.confirmPassword}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          confirmPassword: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       required
                       className="pr-10"
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -318,9 +302,10 @@ export default function FacilitatorRegister() {
 
               <Button
                 type="submit"
+                disabled={isLoading}
                 className="w-full h-11 bg-blue-600 hover:bg-blue-700"
               >
-                Register as Facilitator
+                {isLoading ? "Registering..." : "Register as Facilitator"}
               </Button>
             </form>
 
