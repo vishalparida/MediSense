@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+// import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,14 +15,48 @@ import NotificationSystem from "@/components/NotificationSystem"
 import PatientQueue from "@/components/PatientQueue"
 import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
+import { useState, useEffect } from "react"
+import { useAuth } from "@/context/AuthContext"
 
 export default function DoctorDashboard() {
+  const { isLoggedIn, logout } = useAuth();
   const router = useRouter()
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+  const [doctorInfo, setDoctorInfo] = useState({
+    name: "Loading...",
+    specialty: "...",
+    id: "...",
+    avatar: "/doctor-avatar.png",
+  })
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    // Security measure: if no token or user is found, boot them back to login
+    if (!token || !storedUser) {
+      router.push("/auth/doctor/login");
+      return;
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      setDoctorInfo({
+        name: user.fullName || "Doctor",
+        specialty: user.specialization || "General Medicine",
+        // Create a short display ID from their MongoDB _id
+        id: user._id ? `D-${user._id.substring(0, 4).toUpperCase()}` : "D001",
+        avatar: "/doctor-avatar.png",
+      });
+    } catch (error) {
+      console.error("Failed to parse user data from localStorage");
+    }
+  }, [router]);
 
   // Mock data - replace with actual data from your backend
   const [patients, setPatients] = useState([
@@ -97,13 +131,13 @@ export default function DoctorDashboard() {
     },
   ])
 
-  const [doctorInfo] = useState({
-    name: "Dr. Priya Sharma",
-    specialty: "General Medicine",
-    experience: "8 years",
-    hospital: "AIIMS Delhi",
-    avatar: "/doctor-avatar.png",
-  })
+  // const [doctorInfo] = useState({
+  //   name: "Dr. Priya Sharma",
+  //   specialty: "General Medicine",
+  //   experience: "8 years",
+  //   hospital: "AIIMS Delhi",
+  //   avatar: "/doctor-avatar.png",
+  // })
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -229,7 +263,7 @@ export default function DoctorDashboard() {
                 >
                   <div className="text-right">
                     <p className="text-sm font-medium text-foreground">{doctorInfo.name}</p>
-                    <p className="text-xs text-muted-foreground">{doctorInfo.specialty} • D001</p>
+                    <p className="text-xs text-muted-foreground">{doctorInfo.specialty} • {doctorInfo.id}</p>
                   </div>
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -256,7 +290,7 @@ export default function DoctorDashboard() {
                       </button>
                       <hr className="my-1 border-border" />
                       <button
-                        onClick={handleLogout}
+                        onClick={() => { logout(); router.push("/"); }}
                         className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
                       >
                         <LogOut className="h-4 w-4" />

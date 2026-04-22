@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const router = express.Router();
 const { User, Doctor, Facilitator } = require('../models/User');
+const bcrypt = require('bcryptjs');
 
 // Helper function to generate JWT Token
 const generateToken = (id) => {
@@ -53,28 +54,45 @@ router.post('/register', async (req, res)  => {
 // @route   POST /api/auth/login
 // @access  Public
 router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  
   try {
-    const { email, password } = req.body;
-
-    // 1. Find user by email and explicitly select the password field
+    console.log(req.body)
+    // 1. Find user (Explicitly selecting password because it's hidden in the model)
     const user = await User.findOne({ email }).select('+password');
-
-    // 2. Check if user exists and password matches
-    if (user && (await user.matchPassword(password))) {
-      res.status(200).json({
-        success: true,
-        _id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role, // Helpful for frontend to know which dashboard to show
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(401).json({ success: false, message: 'Invalid email or password' });
+    
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
     }
+
+    // 2. Check if password matches using bcrypt directly
+    const isMatch = await bcrypt.compare(password, user.password);
+    
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // 3. Generate JWT
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' } // Token expires in 1 hour
+    );
+
+    // 4. Return token and user (strip out the password for security)
+    const { password: _, ...userData } = user.toObject();
+
+    console.log(user)
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      user: userData
+    });
+
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.log(error);
+    res.status(500).json({ message: 'Error logging in', error: error.message });
   }
-})
+});
 
 module.exports = router;

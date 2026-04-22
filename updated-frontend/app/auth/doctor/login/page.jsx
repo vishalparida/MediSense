@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stethoscope, Eye, EyeOff, Heart } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DoctorLogin() {
+  const { setIsLoggedIn } = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(""); // Added error state
@@ -41,16 +43,24 @@ export default function DoctorLogin() {
       });
 
       const data = await response.json();
+      // console.log(data)
 
       if (response.status === 200) {
         // Security check: Ensure a Facilitator isn't trying to log into the Doctor portal
-        if (data.role !== "Doctor") {
+        if (data.user.role !== "Doctor") {
           setError("Access denied. Please use the Facilitator login portal.");
           setIsLoading(false);
           return;
         }
 
         console.log("Doctor login successful:", data);
+        const token = data?.token || "";
+        const user = data?.user || {};
+        console.log("Received token:", token);
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+        setIsLoggedIn(true);
         
         // Optional: Save the JWT token securely here
         // localStorage.setItem("token", data.token);
