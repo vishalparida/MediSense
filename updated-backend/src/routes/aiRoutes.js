@@ -19,7 +19,8 @@ router.post('/generate-report', async (req, res) => {
     Provide a concise 2-3 line summary of the patient profile and symptoms. 
     Clearly State the perceived seriousness (Low, Medium, or High).
     State clearly if a video consultation is recommended based on the symptoms and history. 
-    Keep it strictly professional, objective, and brief.`;
+    Keep it strictly professional, objective, and brief.
+    IMPORTANT: Do not use any Markdown formatting, bold text, or asterisks in your response. Output plain text only.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
