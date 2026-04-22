@@ -49,16 +49,38 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     }))
   }
 
-  const generateAIReport = () => {
-    setIsGeneratingReport(true)
-    // Simulate AI report generation
-    setTimeout(() => {
-      const report = `${formData.age}-year-old ${formData.gender.toLowerCase()} presenting with ${formData.symptoms.toLowerCase()}. Medical history significant for ${formData.medicalHistory || "no significant medical history"}. Based on the symptoms and patient profile, recommend immediate medical evaluation and appropriate diagnostic workup.`
-      setAiReport(report)
-      setIsGeneratingReport(false)
-      setShowDoctorSelection(true)
-    }, 3000)
-  }
+  const generateAIReport = async () => {
+    setIsGeneratingReport(true);
+    
+    try {
+      const response = await fetch("http://localhost:5000/api/ai/generate-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          age: formData.age,
+          gender: formData.gender,
+          symptoms: formData.symptoms,
+          medicalHistory: formData.medicalHistory,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAiReport(data.report);
+        setShowDoctorSelection(true);
+      } else {
+        alert("Failed to generate report: " + data.message);
+      }
+    } catch (error) {
+      console.error("Error calling AI service:", error);
+      alert("Error connecting to AI service. Ensure your backend is running.");
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
 
  // --- UPDATED: Now connects to your MongoDB Backend ---
  const sendToDoctor = async () => {
