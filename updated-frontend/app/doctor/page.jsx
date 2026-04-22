@@ -50,7 +50,7 @@ export default function DoctorDashboard() {
         name: user.fullName || "Doctor",
         specialty: user.specialization || "General Medicine",
         // Create a short display ID from their MongoDB _id
-        id: user._id ? `D-${user._id.substring(0, 4).toUpperCase()}` : "D001",
+        id: user._id ? `D-${user._id.substring(0, 4).toUpperCase()}` : "69d8d77c8919463de7743f83",
         avatar: "/doctor-avatar.png",
       });
     } catch (error) {

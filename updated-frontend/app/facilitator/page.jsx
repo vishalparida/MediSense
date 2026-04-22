@@ -75,7 +75,7 @@ export default function FacilitatorDashboard() {
           aiSummary:
             "45-year-old male presenting with respiratory symptoms including persistent cough, fever, and chest pain. Medical history significant for diabetes and hypertension. Symptoms suggest possible respiratory infection or pneumonia. Recommend immediate medical evaluation and chest imaging.",
           assignedDoctor: {
-            id: "D001",
+            id: "69d8d77c8919463de7743f83",
             name: "Dr. Priya Sharma",
             specialty: "General Medicine",
             avatar: "/placeholder.svg?height=40&width=40",
@@ -172,7 +172,7 @@ export default function FacilitatorDashboard() {
           aiSummary:
             "35-year-old female with chronic headache, dizziness, and visual disturbances. Known hypertensive with family history of diabetes. Symptoms may indicate uncontrolled hypertension or developing complications.",
           assignedDoctor: {
-            id: "D001",
+            id: "69d8d77c8919463de7743f83",
             name: "Dr. Priya Sharma",
             specialty: "General Medicine",
             avatar: "/placeholder.svg?height=40&width=40",
@@ -213,7 +213,7 @@ export default function FacilitatorDashboard() {
       ],
       doctors: [
         {
-          id: "D001",
+          id: "69d8d77c8919463de7743f83",
           name: "Dr. Priya Sharma",
           specialty: "General Medicine",
           experience: "8 years",

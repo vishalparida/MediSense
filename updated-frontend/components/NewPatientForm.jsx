@@ -36,6 +36,8 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files)
+    // Note: URL.createObjectURL creates local browser links. 
+    // For a real app, you'd upload these to S3/Cloudinary first and save those URLs.
     const imageUrls = files.map((file) => URL.createObjectURL(file))
     setFormData((prev) => ({ ...prev, images: [...prev.images, ...imageUrls] }))
   }
@@ -58,77 +60,77 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     }, 3000)
   }
 
-  const sendToDoctor = () => {
+  // --- UPDATED: Now connects to your MongoDB Backend ---
+  const sendToDoctor = async () => {
     if (!selectedDoctor) return
 
     setIsSending(true)
-    setTimeout(() => {
-      const newPatient = {
-        id: `P${String(Date.now()).slice(-3)}`,
+
+    try {
+      // 1. Get the logged-in facilitator's ID from localStorage
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const facilitatorId = storedUser._id;
+
+      // 2. Prepare the payload matching your Mongoose Schema
+      const payload = {
         ...formData,
-        status: "awaiting_doctor", // Always start with awaiting_doctor
-        priority: "Medium",
+        age: Number(formData.age), // Ensure age is a number
+        images: formData.images.map(img => ({ url: img, label: "Uploaded Image" })), // Map to your imageSchema
         aiSummary: aiReport,
-        assignedDoctor: doctors.find((d) => d.id === selectedDoctor),
-        doctorResponse: null,
-        createdAt: new Date().toISOString(),
+        assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
+        createdBy: facilitatorId
+      };
+
+      // 3. Send to backend
+      const response = await fetch("http://localhost:5000/api/patients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const newFrontendPatient = {
+          ...data.patient,
+          id: data.patient._id, 
+        };
+
+        // 👇 Change this to pass your newly mapped object
+        onPatientAdd(newFrontendPatient);
+        setIsSending(false)
+        setShowSuccess(true)
+
+        // Reset form after 2 seconds
+        setTimeout(() => {
+          setFormData({
+            name: "", age: "", gender: "", phone: "", village: "", 
+            district: "", state: "", symptoms: "", medicalHistory: "", images: [],
+          })
+          setAiReport("")
+          setSelectedDoctor("")
+          setShowDoctorSelection(false)
+          setShowSuccess(false)
+        }, 2000)
+      } else {
+        alert("Failed to save patient: " + data.message);
+        setIsSending(false);
       }
-
-      onPatientAdd(newPatient)
-      setIsSending(false)
-      setShowSuccess(true)
-
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormData({
-          name: "",
-          age: "",
-          gender: "",
-          phone: "",
-          village: "",
-          district: "",
-          state: "",
-          symptoms: "",
-          medicalHistory: "",
-          images: [],
-        })
-        setAiReport("")
-        setSelectedDoctor("")
-        setShowDoctorSelection(false)
-        setShowSuccess(false)
-      }, 2000)
-    }, 1500)
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Server error. Ensure your backend is running.");
+      setIsSending(false);
+    }
   }
 
   const indianStates = [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Jharkhand",
-    "Karnataka",
-    "Kerala",
-    "Madhya Pradesh",
-    "Maharashtra",
-    "Manipur",
-    "Meghalaya",
-    "Mizoram",
-    "Nagaland",
-    "Odisha",
-    "Punjab",
-    "Rajasthan",
-    "Sikkim",
-    "Tamil Nadu",
-    "Telangana",
-    "Tripura",
-    "Uttar Pradesh",
-    "Uttarakhand",
-    "West Bengal",
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
   ]
 
   if (showSuccess) {

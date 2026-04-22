@@ -1,66 +1,39 @@
-import { Router } from "express";
-import Joi from "joi";
-import { authenticate, authorize } from "../middleware/auth.js";
-import { validate } from "../middleware/validate.js";
-import {
-  listPatients,
-  createPatient,
-  getPatient,
-  updatePatient,
-  assignDoctor,
-  regenerateReport,
-  updateStatus,
-} from "../controllers/patientController.js";
+const express = require('express');
+const router = express.Router();
+const { Patient } = require('../models/Patient'); // Adjust path to your Patient model
 
-const router = Router();
+// POST /api/patients - Create a new patient
+router.post('/', async (req, res) => {
+  try {
+    const newPatient = new Patient({
+      name: req.body.name,
+      age: req.body.age,
+      gender: req.body.gender,
+      phone: req.body.phone,
+      village: req.body.village,
+      district: req.body.district,
+      state: req.body.state,
+      symptoms: req.body.symptoms,
+      medicalHistory: req.body.medicalHistory,
+      images: req.body.images, 
+      aiSummary: req.body.aiSummary,
+      assignedDoctor: req.body.assignedDoctor,
+      createdBy: req.body.createdBy,
+      status: "awaiting_doctor",
+      priority: "Medium"
+    });
 
-const createSchema = Joi.object({
-  name: Joi.string().required(),
-  age: Joi.number().required(),
-  gender: Joi.string().valid("Male", "Female", "Other").required(),
-  phone: Joi.string().required(),
-  village: Joi.string().allow("", null),
-  district: Joi.string().allow("", null),
-  state: Joi.string().allow("", null),
-  symptoms: Joi.string().required(),
-  medicalHistory: Joi.string().allow("", null),
-  images: Joi.array().items(Joi.string().uri()).default([]),
-  priority: Joi.string().valid("High", "Medium", "Low").default("Medium"),
+    const savedPatient = await newPatient.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Patient created successfully',
+      patient: savedPatient
+    });
+  } catch (error) {
+    console.error("Error saving patient:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
-const updateSchema = createSchema.fork(
-  ["name", "age", "gender", "phone", "symptoms"],
-  (schema) => schema.optional()
-);
-
-const assignSchema = Joi.object({
-  doctorId: Joi.string().required(),
-});
-
-const statusSchema = Joi.object({
-  status: Joi.string()
-    .valid("awaiting_doctor", "video_scheduled", "completed")
-    .required(),
-});
-
-router.use(authenticate);
-
-router.get("/", listPatients);
-router.post(
-  "/",
-  authorize("facilitator", "admin"),
-  validate(createSchema),
-  createPatient
-);
-router.get("/:id", getPatient);
-router.patch("/:id", validate(updateSchema), updatePatient);
-router.post(
-  "/:id/assign-doctor",
-  authorize("facilitator", "admin"),
-  validate(assignSchema),
-  assignDoctor
-);
-router.post("/:id/regenerate-report", regenerateReport);
-router.post("/:id/status", validate(statusSchema), updateStatus);
-
-export default router;
+module.exports = router;
