@@ -19,6 +19,7 @@ export default function FacilitatorLogin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -26,18 +27,49 @@ export default function FacilitatorLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Replace with actual API call to your backend
-    // const response = await fetch('/api/auth/facilitator/login', {
-    //   method: 'POST',
-    //   body: JSON.stringify(formData)
-    // })
-    // const data = await response.json()
+    setError(""); // Clear previous errors
+    setIsLoading(true);
 
-    // For now, simulate successful authentication
-    if (formData.email && formData.password) {
-      console.log("Facilitator login:", formData);
-      // Redirect to facilitator dashboard after successful login
-      router.push("/facilitator");
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 200) {
+        // Security check: Ensure a Doctor isn't trying to log into the Facilitator portal
+        if (data.user.role !== "Facilitator") {
+          setError("Access denied. Please use the Doctor login portal.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Facilitator login successful:", data);
+        
+        const token = data?.token || "";
+        const user = data?.user || {};
+        
+        // Save auth data for the context provider
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // Redirect to facilitator dashboard
+        router.push("/facilitator"); 
+        
+      } else {
+        // Handle invalid password or unregistered email
+        setError(data.message || "Invalid email or password");
+      }
+    } catch (err) {
+      setError("Server connection failed. Is your backend running?");
+    } finally {
+      setIsLoading(false);
     }
   };
 

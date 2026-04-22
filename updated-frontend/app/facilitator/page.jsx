@@ -13,14 +13,46 @@ import NotificationSystem from "@/components/NotificationSystem"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Heart, Users, FileText, History, User, ChevronDown, LogOut, Settings } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/context/AuthContext"
+
 
 export default function FacilitatorDashboard() {
+  const { logout } = useAuth();
   const router = useRouter()
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeTab, setActiveTab] = useState("dashboard")
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [facilitatorInfo, setFacilitatorInfo] = useState({})
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    // Security bounce: if no token is found, send them back to login
+    if (!token || !storedUser) {
+      router.push("/auth/facilitator/login");
+      return;
+    }
+
+    try {
+      // Parse the JSON string back into a JavaScript object
+      const user = JSON.parse(storedUser);
+      
+      // Update the state with the actual data from the database
+      setFacilitatorInfo({
+        name: user.fullName || "Facilitator",
+        // Facilitators have village/district data instead of specialties
+        location: user.villageArea ? `${user.villageArea}, ${user.district}` : "Rural Region",
+        // Create a short display ID from their MongoDB _id (e.g., F-A1B2)
+        id: user._id ? `F-${user._id.substring(0, 4).toUpperCase()}` : "F001",
+        avatar: "/facilitator-avatar.png", // Or a dynamic avatar if you add one later
+      });
+    } catch (error) {
+      console.error("Failed to parse user data from localStorage");
+    }
+  }, [router]);
 
   useEffect(() => {
     // Mock data directly in component to avoid fetch issues
@@ -331,8 +363,11 @@ export default function FacilitatorDashboard() {
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Ravi Kumar</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • F001</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {facilitatorInfo.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • {facilitatorInfo.id}</p>
+                    
                   </div>
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -362,8 +397,8 @@ export default function FacilitatorDashboard() {
                       </button>
                       <hr className="my-1 dark:border-gray-600" />
                       <button
-                        onClick={handleLogout}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        onClick={() => { logout(); router.push("/"); }}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Logout</span>
