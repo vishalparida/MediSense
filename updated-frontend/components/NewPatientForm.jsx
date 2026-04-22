@@ -60,70 +60,81 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     }, 3000)
   }
 
-  // --- UPDATED: Now connects to your MongoDB Backend ---
-  const sendToDoctor = async () => {
-    if (!selectedDoctor) return
+ // --- UPDATED: Now connects to your MongoDB Backend ---
+ const sendToDoctor = async () => {
+  if (!selectedDoctor) return
 
-    setIsSending(true)
+  setIsSending(true)
 
-    try {
-      // 1. Get the logged-in facilitator's ID from localStorage
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const facilitatorId = storedUser._id;
+  try {
+    // 1. Get the logged-in facilitator's ID from localStorage
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const facilitatorId = storedUser._id;
 
-      // 2. Prepare the payload matching your Mongoose Schema
-      const payload = {
-        ...formData,
-        age: Number(formData.age), // Ensure age is a number
-        images: formData.images.map(img => ({ url: img, label: "Uploaded Image" })), // Map to your imageSchema
-        aiSummary: aiReport,
-        assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
-        createdBy: facilitatorId
+    // 2. Prepare the payload matching your Mongoose Schema
+    const payload = {
+      ...formData,
+      age: Number(formData.age), // Ensure age is a number
+      images: formData.images.map(img => ({ url: img, label: "Uploaded Image" })), // Map to your imageSchema
+      aiSummary: aiReport,
+      assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
+      createdBy: facilitatorId
+    };
+
+    // 3. Send to backend
+    const response = await fetch("http://localhost:5000/api/patients", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      
+      // 👇 ADDED FIX: Find the full doctor details from the frontend array
+      const selectedDoctorDetails = doctors.find(doc => doc.id === selectedDoctor);
+
+      const newFrontendPatient = {
+        ...data.patient,
+        id: data.patient._id, 
+        // 👇 Manually attach the full doctor object so the UI updates instantly
+        assignedDoctor: selectedDoctorDetails ? {
+          id: selectedDoctorDetails.id,
+          name: selectedDoctorDetails.name,
+          specialty: selectedDoctorDetails.specialty,
+          avatar: selectedDoctorDetails.avatar
+        } : null
       };
 
-      // 3. Send to backend
-      const response = await fetch("http://localhost:5000/api/patients", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      // Pass the fully mapped object
+      onPatientAdd(newFrontendPatient);
+      setIsSending(false)
+      setShowSuccess(true)
 
-      const data = await response.json();
-
-      if (response.ok) {
-        const newFrontendPatient = {
-          ...data.patient,
-          id: data.patient._id, 
-        };
-
-        // 👇 Change this to pass your newly mapped object
-        onPatientAdd(newFrontendPatient);
-        setIsSending(false)
-        setShowSuccess(true)
-
-        // Reset form after 2 seconds
-        setTimeout(() => {
-          setFormData({
-            name: "", age: "", gender: "", phone: "", village: "", 
-            district: "", state: "", symptoms: "", medicalHistory: "", images: [],
-          })
-          setAiReport("")
-          setSelectedDoctor("")
-          setShowDoctorSelection(false)
-          setShowSuccess(false)
-        }, 2000)
-      } else {
-        alert("Failed to save patient: " + data.message);
-        setIsSending(false);
-      }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Server error. Ensure your backend is running.");
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        setFormData({
+          name: "", age: "", gender: "", phone: "", village: "", 
+          district: "", state: "", symptoms: "", medicalHistory: "", images: [],
+        })
+        setAiReport("")
+        setSelectedDoctor("")
+        setShowDoctorSelection(false)
+        setShowSuccess(false)
+      }, 2000)
+    } else {
+      alert("Failed to save patient: " + data.message);
       setIsSending(false);
     }
+  } catch (error) {
+    console.error("Submission error:", error);
+    alert("Server error. Ensure your backend is running.");
+    setIsSending(false);
   }
+}
 
   const indianStates = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -358,38 +369,45 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
           {/* Doctor Selection */}
           {showDoctorSelection && (
             <Card className="bg-blue-50 border-blue-200">
-              <CardHeader>
+              <CardHeader>  
                 <CardTitle className="text-lg">Select Doctor</CardTitle>
                 <CardDescription>Choose a doctor to send this patient case to</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-3">
-                  {doctors.map((doctor) => (
-                    <div
-                      key={doctor.id}
-                      onClick={() => setSelectedDoctor(doctor.id)}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                        selectedDoctor === doctor.id
-                          ? "border-blue-500 bg-blue-100"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={doctor.avatar || "/placeholder.svg"}
-                          alt={doctor.name}
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <h4 className="font-medium text-gray-900">{doctor.name}</h4>
-                          <p className="text-sm text-gray-600">{doctor.specialty}</p>
-                          <p className="text-xs text-gray-500">
-                            {doctor.experience} • {doctor.location}
-                          </p>
+              <div className="grid md:grid-cols-2 gap-3">
+                  {/* 👇 Added safety check here 👇 */}
+                  {doctors && doctors.length > 0 ? (
+                    doctors.map((doctor) => (
+                      <div
+                        key={doctor.id}
+                        onClick={() => setSelectedDoctor(doctor.id)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedDoctor === doctor.id
+                            ? "border-blue-500 bg-blue-100"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={doctor.avatar || "/placeholder.svg"}
+                            alt={doctor.name}
+                            className="w-10 h-10 rounded-full"
+                          />
+                          <div>
+                            <h4 className="font-medium text-gray-900">{doctor.name}</h4>
+                            <p className="text-sm text-gray-600">{doctor.specialty}</p>
+                            <p className="text-xs text-gray-500">
+                              {doctor.experience} • {doctor.location}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
+                      No doctors currently available in the database.
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 <Button onClick={sendToDoctor} disabled={!selectedDoctor || isSending} className="w-full">

@@ -2,6 +2,29 @@ const express = require('express');
 const router = express.Router();
 const { Patient } = require('../models/Patient'); // Adjust path to your Patient model
 
+
+router.get('/', async (req, res) => {
+  try {
+    const { facilitatorId } = req.query;
+    
+    // If a facilitator ID is provided, only fetch their patients. Otherwise, fetch all.
+    const query = facilitatorId ? { createdBy: facilitatorId } : {};
+
+    const patients = await Patient.find(query)
+      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic') // Pull in doctor details
+      .sort({ createdAt: -1 }); // Newest first
+
+    res.status(200).json({
+      success: true,
+      count: patients.length,
+      patients: patients
+    });
+  } catch (error) {
+    console.error("Error fetching patients:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/patients - Create a new patient
 router.post('/', async (req, res) => {
   try {

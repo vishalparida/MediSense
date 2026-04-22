@@ -15,7 +15,6 @@ import { Heart, Users, FileText, History, User, ChevronDown, LogOut, Settings } 
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
 
-
 export default function FacilitatorDashboard() {
   const { logout } = useAuth();
   const router = useRouter()
@@ -25,253 +24,93 @@ export default function FacilitatorDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [facilitatorInfo, setFacilitatorInfo] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
 
+  // 1. Auth & Facilitator Profile Load
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
-    // Security bounce: if no token is found, send them back to login
     if (!token || !storedUser) {
       router.push("/auth/facilitator/login");
       return;
     }
 
     try {
-      // Parse the JSON string back into a JavaScript object
       const user = JSON.parse(storedUser);
-      
-      // Update the state with the actual data from the database
       setFacilitatorInfo({
         name: user.fullName || "Facilitator",
-        // Facilitators have village/district data instead of specialties
         location: user.villageArea ? `${user.villageArea}, ${user.district}` : "Rural Region",
-        // Create a short display ID from their MongoDB _id (e.g., F-A1B2)
         id: user._id ? `F-${user._id.substring(0, 4).toUpperCase()}` : "F001",
-        avatar: "/facilitator-avatar.png", // Or a dynamic avatar if you add one later
+        rawId: user._id // Keep original ID for fetching
       });
     } catch (error) {
       console.error("Failed to parse user data from localStorage");
     }
   }, [router]);
 
+  // 2. Fetch Real Patients and Doctors from MongoDB
   useEffect(() => {
-    // Mock data directly in component to avoid fetch issues
-    const mockData = {
-      patients: [
-        {
-          id: "P001",
-          name: "Rajesh Kumar",
-          age: 45,
-          gender: "Male",
-          phone: "+91 98765 43210",
-          village: "Rampur",
-          district: "Sitapur",
-          state: "Uttar Pradesh",
-          symptoms: "Persistent cough, fever for 3 days, chest pain",
-          medicalHistory: "Diabetes, Hypertension",
-          images: ["/placeholder.svg?height=200&width=200", "/placeholder.svg?height=200&width=200"],
-          status: "awaiting_doctor",
-          priority: "High",
-          aiSummary:
-            "45-year-old male presenting with respiratory symptoms including persistent cough, fever, and chest pain. Medical history significant for diabetes and hypertension. Symptoms suggest possible respiratory infection or pneumonia. Recommend immediate medical evaluation and chest imaging.",
-          assignedDoctor: {
-            id: "69d8d77c8919463de7743f83",
-            name: "Dr. Priya Sharma",
-            specialty: "General Medicine",
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          doctorResponse: {
-            prescription:
-              "Tab. Azithromycin 500mg OD x 5 days, Tab. Paracetamol 650mg TDS, Syrup Salbutamol 5ml TDS. Complete bed rest and adequate fluid intake.",
-            action: "prescription_given",
-            notes: "Monitor temperature. Return if symptoms worsen.",
-            timestamp: "2024-01-15T10:30:00Z",
-          },
-          createdAt: "2024-01-15T08:00:00Z",
-        },
-        {
-          id: "P002",
-          name: "Sunita Devi",
-          age: 32,
-          gender: "Female",
-          phone: "+91 87654 32109",
-          village: "Kishanganj",
-          district: "Purnia",
-          state: "Bihar",
-          symptoms: "Severe abdominal pain, nausea, vomiting since morning",
-          medicalHistory: "Previous C-section delivery",
-          images: ["/placeholder.svg?height=200&width=200"],
-          status: "video_scheduled",
-          priority: "High",
-          aiSummary:
-            "32-year-old female with acute abdominal pain, nausea, and vomiting. History of previous C-section. Symptoms concerning for possible appendicitis, ovarian cyst, or adhesions. Requires urgent medical evaluation.",
-          assignedDoctor: {
-            id: "D002",
-            name: "Dr. Amit Verma",
-            specialty: "Surgery",
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          doctorResponse: {
-            prescription: "",
-            action: "request_video",
-            notes: "Urgent video consultation required. Possible surgical intervention needed.",
-            videoScheduled: {
-              date: "2024-01-15",
-              time: "14:00",
-              joinUrl: "https://meet.medisense.com/room/P002-urgent",
-            },
-            timestamp: "2024-01-15T11:15:00Z",
-          },
-          createdAt: "2024-01-15T09:30:00Z",
-        },
-        {
-          id: "P003",
-          name: "Mohan Singh",
-          age: 28,
-          gender: "Male",
-          phone: "+91 76543 21098",
-          village: "Dholpur",
-          district: "Dholpur",
-          state: "Rajasthan",
-          symptoms: "Skin rash on arms and legs, itching, mild fever",
-          medicalHistory: "No significant medical history",
-          images: ["/placeholder.svg?height=200&width=200", "/placeholder.svg?height=200&width=200"],
-          status: "completed",
-          priority: "Medium",
-          aiSummary:
-            "28-year-old male presenting with skin rash on extremities with associated itching and mild fever. No significant medical history. Likely allergic reaction or contact dermatitis. Recommend antihistamines and topical treatment.",
-          assignedDoctor: {
-            id: "D003",
-            name: "Dr. Kavita Patel",
-            specialty: "Dermatology",
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          doctorResponse: {
-            prescription:
-              "Tab. Cetirizine 10mg OD x 7 days, Calamine lotion for local application BD, Tab. Prednisolone 10mg OD x 3 days",
-            action: "prescription_given",
-            notes: "Avoid known allergens. Follow up if rash persists after 1 week.",
-            timestamp: "2024-01-14T16:45:00Z",
-          },
-          createdAt: "2024-01-14T14:20:00Z",
-        },
-        {
-          id: "P004",
-          name: "Priya Gupta",
-          age: 35,
-          gender: "Female",
-          phone: "+91 99887 76543",
-          village: "Khandwa",
-          district: "Khandwa",
-          state: "Madhya Pradesh",
-          symptoms: "Headache, dizziness, blurred vision for 2 weeks",
-          medicalHistory: "Hypertension, family history of diabetes",
-          images: ["/placeholder.svg?height=200&width=200"],
-          status: "awaiting_doctor",
-          priority: "Medium",
-          aiSummary:
-            "35-year-old female with chronic headache, dizziness, and visual disturbances. Known hypertensive with family history of diabetes. Symptoms may indicate uncontrolled hypertension or developing complications.",
-          assignedDoctor: {
-            id: "69d8d77c8919463de7743f83",
-            name: "Dr. Priya Sharma",
-            specialty: "General Medicine",
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          doctorResponse: null,
-          createdAt: "2024-01-16T07:15:00Z",
-        },
-        {
-          id: "P005",
-          name: "Arjun Patel",
-          age: 22,
-          gender: "Male",
-          phone: "+91 88776 65432",
-          village: "Anand",
-          district: "Anand",
-          state: "Gujarat",
-          symptoms: "Joint pain in knees and ankles, morning stiffness",
-          medicalHistory: "No significant medical history",
-          images: ["/placeholder.svg?height=200&width=200", "/placeholder.svg?height=200&width=200"],
-          status: "completed",
-          priority: "Low",
-          aiSummary:
-            "22-year-old male with joint pain and morning stiffness affecting knees and ankles. No significant medical history. Symptoms suggest possible inflammatory arthritis or overuse injury.",
-          assignedDoctor: {
-            id: "D004",
-            name: "Dr. Rajesh Gupta",
-            specialty: "Orthopedics",
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          doctorResponse: {
-            prescription: "Tab. Ibuprofen 400mg BD x 7 days, Hot water fomentation, Physiotherapy exercises",
-            action: "prescription_given",
-            notes: "Continue exercises. Return if pain persists beyond 2 weeks.",
-            timestamp: "2024-01-13T14:20:00Z",
-          },
-          createdAt: "2024-01-13T11:45:00Z",
-        },
-      ],
-      doctors: [
-        {
-          id: "69d8d77c8919463de7743f83",
-          name: "Dr. Priya Sharma",
-          specialty: "General Medicine",
-          experience: "8 years",
-          location: "Delhi",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        {
-          id: "D002",
-          name: "Dr. Amit Verma",
-          specialty: "Surgery",
-          experience: "12 years",
-          location: "Mumbai",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        {
-          id: "D003",
-          name: "Dr. Kavita Patel",
-          specialty: "Dermatology",
-          experience: "6 years",
-          location: "Ahmedabad",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        {
-          id: "D004",
-          name: "Dr. Rajesh Gupta",
-          specialty: "Orthopedics",
-          experience: "10 years",
-          location: "Jaipur",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        {
-          id: "D005",
-          name: "Dr. Meera Joshi",
-          specialty: "Pediatrics",
-          experience: "7 years",
-          location: "Pune",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        {
-          id: "D006",
-          name: "Dr. Suresh Kumar",
-          specialty: "Cardiology",
-          experience: "15 years",
-          location: "Bangalore",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-      ],
-    }
+    const fetchDatabaseData = async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (!user._id) return;
 
-    setPatients(mockData.patients)
-    setDoctors(mockData.doctors)
-    setSelectedPatient(mockData.patients[0])
-  }, [])
+      try {
+        // Fetch BOTH patients and doctors simultaneously
+        const [patientsResponse, doctorsResponse] = await Promise.all([
+          fetch(`http://localhost:5000/api/patients?facilitatorId=${user._id}`),
+          fetch(`http://localhost:5000/api/doctors`)
+        ]);
 
-  // Simulate doctor status changes for demo
+        const patientsData = await patientsResponse.json();
+        const doctorsData = await doctorsResponse.json();
+
+        // Map and set the Doctors
+        if (doctorsData.success) {
+          const formattedDoctors = doctorsData.doctors.map(doc => ({
+            id: doc._id,
+            name: doc.fullName || "Doctor",
+            specialty: doc.specialization || "General Medicine",
+            experience: doc.yearsOfExperience ? `${doc.yearsOfExperience} years` : "",
+            location: doc.currentHospitalClinic || doc.city || "",
+            avatar: "/doctor-avatar.png"
+          }));
+          setDoctors(formattedDoctors);
+          console.log("Fetched Doctors:", formattedDoctors);
+        }
+
+        // Map and set the Patients
+        if (patientsData.success) {
+          const formattedPatients = patientsData.patients.map(p => ({
+            ...p,
+            id: p._id, // Map MongoDB _id to id
+            // Map populated doctor details
+            assignedDoctor: p.assignedDoctor ? {
+              id: p.assignedDoctor._id,
+              name: p.assignedDoctor.fullName || "Doctor",
+              specialty: p.assignedDoctor.specialization || "Specialist",
+              avatar: "/doctor-avatar.png"
+            } : null
+          }));
+
+          setPatients(formattedPatients);
+          if (formattedPatients.length > 0) {
+            setSelectedPatient(formattedPatients[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDatabaseData();
+  }, []);
+
+  // 3. Mock Interval for Doctor Responses (Keep this for UI testing)
   useEffect(() => {
     const interval = setInterval(() => {
-      // Randomly change a patient's status to demonstrate notifications
       setPatients((prev) => {
         const awaitingPatients = prev.filter((p) => p.status === "awaiting_doctor")
         if (awaitingPatients.length > 0 && Math.random() > 0.95) {
@@ -301,7 +140,7 @@ export default function FacilitatorDashboard() {
         }
         return prev
       })
-    }, 10000) // Check every 10 seconds
+    }, 10000)
 
     return () => clearInterval(interval)
   }, [])
@@ -329,10 +168,15 @@ export default function FacilitatorDashboard() {
   }
 
   const handleLogout = () => {
-    router.push("/auth/facilitator/login")
+    logout();
+    router.push("/");
   }
 
   const activeCases = patients.filter((p) => p.status !== "completed")
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading Dashboard...</div>
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -350,10 +194,7 @@ export default function FacilitatorDashboard() {
             </div>
 
             <div className="flex items-center space-x-4">
-              {/* Notifications */}
               <NotificationSystem patients={patients} />
-
-              {/* Theme Toggle */}
               <ThemeToggle />
 
               {/* Profile Dropdown */}
@@ -363,11 +204,10 @@ export default function FacilitatorDashboard() {
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">
-                    {facilitatorInfo.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • {facilitatorInfo.id}</p>
-                    
+                    <p className="text-sm font-medium text-foreground">
+                      {facilitatorInfo.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • {facilitatorInfo.id}</p>
                   </div>
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -397,7 +237,7 @@ export default function FacilitatorDashboard() {
                       </button>
                       <hr className="my-1 dark:border-gray-600" />
                       <button
-                        onClick={() => { logout(); router.push("/"); }}
+                        onClick={handleLogout}
                         className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
                       >
                         <LogOut className="h-4 w-4" />

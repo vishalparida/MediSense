@@ -1,8 +1,19 @@
-import { Router } from "express";
-import { authenticate } from "../middleware/auth.js";
-import { listDoctors } from "../controllers/doctorController.js";
+const express = require('express');
+const router = express.Router();
+const { User} = require('../models/User'); // Adjust path to your User model
 
-const router = Router();
-router.use(authenticate);
-router.get("/", listDoctors);
-export default router;
+router.get('/', async (req, res) => {
+  try {
+    const doctors = await User.find({ role: 'Doctor' }).select('-password');
+
+    res.status(200).json({
+      success: true,
+      count: doctors.length,
+      doctors: doctors
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+module.exports = router;

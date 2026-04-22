@@ -41,11 +41,13 @@ connectDB();
 // ==========================================
 const authRoutes = require('./routes/authRoutes');
 const patientRoutes = require('./routes/patientRoutes');
+const doctorRoutes = require('./routes/doctorRoutes');
 // const patientRoutes = require('./routes/patientRoutes');
 
 // Tell Express to use these routes
 app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientRoutes)
+app.use('/api/patients', patientRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 // app.use('/api/patients', patientRoutes);
 
