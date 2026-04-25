@@ -109,7 +109,7 @@ export default function DoctorRegister() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -121,7 +121,7 @@ export default function DoctorRegister() {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto p-3 bg-cyan-100 rounded-full">
+            <div className="mx-auto p-3 bg-secondary rounded-full">
               <Stethoscope className="h-8 w-8 text-cyan-600" />
             </div>
             <div>

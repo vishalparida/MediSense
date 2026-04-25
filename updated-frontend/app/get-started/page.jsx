@@ -5,7 +5,7 @@ import { Users, Stethoscope, ArrowRight } from 'lucide-react'
 
 export default function GetStarted() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-blue-600 mb-4">
@@ -20,7 +20,7 @@ export default function GetStarted() {
           {/* Facilitator Card */}
           <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-2 hover:border-blue-200">
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 p-4 bg-blue-100 rounded-full group-hover:bg-blue-200 transition-colors">
+              <div className="mx-auto mb-4 p-4 bg-secondary rounded-full group-hover:bg-blue-200 transition-colors">
                 <Users className="h-12 w-12 text-blue-600" />
               </div>
               <CardTitle className="text-2xl text-blue-600">Facilitator</CardTitle>
@@ -55,12 +55,13 @@ export default function GetStarted() {
           {/* Doctor Card */}
           <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-2 hover:border-cyan-200">
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 p-4 bg-cyan-100 rounded-full group-hover:bg-cyan-200 transition-colors">
+              <div className="mx-auto mb-4 p-4 bg-secondary rounded-full group-hover:bg-cyan-200 transition-colors">
                 <Stethoscope className="h-12 w-12 text-cyan-600" />
               </div>
               <CardTitle className="text-2xl text-cyan-600">Doctor</CardTitle>
               <CardDescription className="text-base">
-                Review patients and provide treatment plans with AI-powered insights.
+                <p>Review patients and provide treatment plans with AI-powered insights.</p>
+                <br />
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -78,7 +79,7 @@ export default function GetStarted() {
                   <span>Video consultation scheduling</span>
                 </div>
               </div>
-              <Button asChild className="w-full bg-cyan-600 hover:bg-cyan-700 transition-colors">
+              <Button asChild className="w-full hover:bg-cyan-700 transition-colors">
                 <Link href="/auth/doctor/login">
                   Get Started as Doctor
                   <ArrowRight className="ml-2 h-4 w-4" />

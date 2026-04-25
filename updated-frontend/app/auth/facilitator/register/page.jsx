@@ -111,7 +111,7 @@ export default function FacilitatorRegister() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -123,7 +123,7 @@ export default function FacilitatorRegister() {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto p-3 bg-blue-100 rounded-full">
+            <div className="mx-auto p-3 bg-secondary rounded-full">
               <Users className="h-8 w-8 text-blue-600" />
             </div>
             <div>

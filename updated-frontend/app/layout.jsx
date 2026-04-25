@@ -1,6 +1,6 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
-import MouseMoveEffect from "@/components/mouse-move-effect";
+import MouseMoveEffectWrapper from "@/components/mouse-move-effect-wrapper";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <AuthProvider>
-            <MouseMoveEffect />
+            <MouseMoveEffectWrapper />
             {children}
           </AuthProvider>
         </ThemeProvider>
