@@ -25,38 +25,15 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
     state: patient.state,
     symptoms: patient.symptoms,
     medicalHistory: patient.medicalHistory,
-    images: [...patient.images],
+    images: [...(patient.images || [])],
   })
 
   const indianStates = [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Jharkhand",
-    "Karnataka",
-    "Kerala",
-    "Madhya Pradesh",
-    "Maharashtra",
-    "Manipur",
-    "Meghalaya",
-    "Mizoram",
-    "Nagaland",
-    "Odisha",
-    "Punjab",
-    "Rajasthan",
-    "Sikkim",
-    "Tamil Nadu",
-    "Telangana",
-    "Tripura",
-    "Uttar Pradesh",
-    "Uttarakhand",
-    "West Bengal",
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
   ]
 
   const handleInputChange = useCallback((field, value) => {
@@ -66,7 +43,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files)
-    const imageUrls = files.map((file) => URL.createObjectURL(file))
+    const imageUrls = files.map((file) => ({ url: URL.createObjectURL(file), label: "Uploaded Image" }))
     setEditedData((prev) => ({ ...prev, images: [...prev.images, ...imageUrls] }))
     setHasChanges(true)
   }
@@ -79,14 +56,32 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
     setHasChanges(true)
   }
 
-  const handleSaveChanges = () => {
-    const updatedPatient = {
-      ...patient,
-      ...editedData,
+  // --- UPDATED: Save Changes to DB ---
+  const handleSaveChanges = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editedData),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        const updatedPatient = {
+          ...data.patient,
+          id: data.patient._id,
+          assignedDoctor: patient.assignedDoctor // Preserve existing assigned doctor
+        };
+        onPatientUpdate(updatedPatient);
+        setIsEditing(false);
+        setHasChanges(false);
+      } else {
+        alert("Failed to update patient: " + data.message);
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Server error. Ensure backend is running.");
     }
-    onPatientUpdate(updatedPatient)
-    setIsEditing(false)
-    setHasChanges(false)
   }
 
   const handleCancelEdit = () => {
@@ -99,52 +94,102 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
       state: patient.state,
       symptoms: patient.symptoms,
       medicalHistory: patient.medicalHistory,
-      images: [...patient.images],
+      images: [...(patient.images || [])],
     })
     setIsEditing(false)
     setHasChanges(false)
   }
 
-  const handleRegenerateReport = () => {
-    setIsRegeneratingReport(true)
-    // Simulate AI report regeneration
-    setTimeout(() => {
-      const newReport = `Updated AI Analysis: ${editedData.age}-year-old ${patient.gender.toLowerCase()} presenting with ${editedData.symptoms.toLowerCase()}. Medical history: ${editedData.medicalHistory || "No significant medical history"}. Based on updated symptoms and patient profile, recommend comprehensive medical evaluation and appropriate diagnostic workup. Report regenerated on ${new Date().toLocaleDateString()}.`
+  // --- UPDATED: Call Real AI and Save to DB ---
+  const handleRegenerateReport = async () => {
+    setIsRegeneratingReport(true);
+    try {
+      // 1. Generate new report
+      const aiResponse = await fetch("http://localhost:5000/api/ai/generate-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          age: editedData.age,
+          gender: patient.gender,
+          symptoms: editedData.symptoms,
+          medicalHistory: editedData.medicalHistory,
+        }),
+      });
+      
+      const aiData = await aiResponse.json();
 
-      const updatedPatient = {
-        ...patient,
-        ...editedData,
-        aiSummary: newReport,
+      if (aiResponse.ok) {
+        // 2. Save new report to Database
+        const updateResponse = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aiSummary: aiData.report }),
+        });
+        
+        const updateData = await updateResponse.json();
+
+        if (updateResponse.ok) {
+          const updatedPatient = {
+            ...updateData.patient,
+            id: updateData.patient._id,
+            assignedDoctor: patient.assignedDoctor
+          };
+          onPatientUpdate(updatedPatient);
+          setHasChanges(true); // Prompts them to send to the doctor!
+        }
+      } else {
+        alert("AI Generation failed: " + aiData.message);
       }
-
-      onPatientUpdate(updatedPatient)
-      setIsRegeneratingReport(false)
-      setHasChanges(true) // Mark as having changes after regeneration
-    }, 3000)
+    } catch (error) {
+      console.error("AI Error:", error);
+    } finally {
+      setIsRegeneratingReport(false);
+    }
   }
 
-  const handleSendToDoctor = () => {
+  // --- UPDATED: Send fully updated case to Doctor in DB ---
+  const handleSendToDoctor = async () => {
     if (!selectedDoctor) return
-
     setIsSending(true)
-    setTimeout(() => {
-      const doctor = doctors.find((d) => d.id === selectedDoctor)
-      const updatedPatient = {
-        ...patient,
-        ...editedData,
-        assignedDoctor: doctor,
-        status: "awaiting_doctor", // Reset to awaiting doctor
+
+    try {
+      const payload = {
+        ...editedData, // Pass any unsaved edits too
+        assignedDoctor: selectedDoctor,
+        status: "awaiting_doctor"
+      };
+
+      const response = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const doctorDetails = doctors.find((d) => d.id === selectedDoctor);
+        const updatedPatient = {
+          ...data.patient,
+          id: data.patient._id,
+          assignedDoctor: doctorDetails ? { ...doctorDetails } : null
+        };
+
+        onPatientUpdate(updatedPatient);
+        setShowSendModal(true);
+        setShowDoctorSelection(false);
+        setHasChanges(false);
+
+        setTimeout(() => setShowSendModal(false), 2000);
+      } else {
+        alert("Failed to send to doctor: " + data.message);
       }
-
-      onPatientUpdate(updatedPatient)
+    } catch (error) {
+      console.error("Send error:", error);
+      alert("Server error.");
+    } finally {
       setIsSending(false)
-      setShowSendModal(true)
-      setShowDoctorSelection(false)
-      setHasChanges(false)
-
-      // Auto-hide modal after 2 seconds
-      setTimeout(() => setShowSendModal(false), 2000)
-    }, 1500)
+    }
   }
 
   return (
@@ -333,31 +378,34 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {editedData.images.map((image, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={image || "/placeholder.svg"}
-                  alt={`Medical image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg border dark:border-gray-600 cursor-pointer hover:opacity-75 transition-opacity"
-                />
-                {isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-                {!isEditing && (
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
-                    <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">
-                      View Full Size
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
+            {editedData.images?.map((imageObj, index) => {
+              const url = typeof imageObj === 'string' ? imageObj : imageObj?.url;
+              return (
+                <div key={index} className="relative group">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt={`Medical image ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border dark:border-gray-600 cursor-pointer hover:opacity-75 transition-opacity"
+                  />
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
+                      <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">
+                        View Full Size
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 

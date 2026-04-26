@@ -59,4 +59,45 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/patients/:id - Fetch a single patient by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.params.id)
+      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic');
+      
+    if (!patient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+    
+    res.status(200).json({ success: true, patient });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/patients/:id - Update an existing patient
+router.put('/:id', async (req, res) => {
+  try {
+    // Find the patient by ID and update with the new data from req.body
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true } // This tells Mongoose to return the updated document
+    ).populate('assignedDoctor', 'fullName specialization currentHospitalClinic');
+
+    if (!updatedPatient) {
+      return res.status(404).json({ success: false, message: 'Patient not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient updated successfully',
+      patient: updatedPatient
+    });
+  } catch (error) {
+    console.error("Error updating patient:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
