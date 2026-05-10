@@ -1,6 +1,5 @@
 "use client"
 
-// import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,15 +16,16 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 export default function DoctorDashboard() {
-  const { isLoggedIn, logout } = useAuth();
+  const { logout } = useAuth();
   const router = useRouter()
   const [selectedPatient, setSelectedPatient] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState("all")
-  const [filterPriority, setFilterPriority] = useState("all")
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  
+  const [patients, setPatients] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const [doctorInfo, setDoctorInfo] = useState({
     name: "Loading...",
@@ -34,178 +34,112 @@ export default function DoctorDashboard() {
     avatar: "/doctor-avatar.png",
   })
 
+  // Fetch Doctor Info AND Assigned Patients
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    const fetchDashboardData = async () => {
+      const storedUser = localStorage.getItem("user");
 
-    // Security measure: if no token or user is found, boot them back to login
-    if (!token || !storedUser) {
-      router.push("/auth/doctor/login");
-      return;
-    }
+      if (!storedUser) {
+        setIsLoading(false);
+        return;
+      }
 
+      try {
+        const user = JSON.parse(storedUser);
+        
+        // 1. Set Doctor Info
+        setDoctorInfo({
+          name: user.fullName || "Doctor",
+          specialty: user.specialization || "General Medicine",
+          id: user._id ? `D-${user._id.substring(0, 4).toUpperCase()}` : "D001",
+          avatar: "/doctor-avatar.png",
+        });
+
+        // 2. Fetch real patients assigned to this doctor from the backend
+        const response = await fetch(`http://localhost:5000/api/patients?doctorId=${user._id}`);
+        const data = await response.json();
+
+        if (data.success) {
+          const formattedPatients = data.patients.map(p => ({
+            ...p,
+            id: p._id,
+            images: p.images ? p.images.map(img => img.url || img) : [],
+            doctorResponse: p.doctorResponse || null,
+            videoConsultationNeeded: p.doctorResponse?.action === "request_video"
+          }));
+
+          setPatients(formattedPatients);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Database Save Helper
+  const savePatientUpdateToDB = async (patientId, updateData) => {
     try {
-      const user = JSON.parse(storedUser);
-      setDoctorInfo({
-        name: user.fullName || "Doctor",
-        specialty: user.specialization || "General Medicine",
-        // Create a short display ID from their MongoDB _id
-        id: user._id ? `D-${user._id.substring(0, 4).toUpperCase()}` : "69d8d77c8919463de7743f83",
-        avatar: "/doctor-avatar.png",
+      const response = await fetch(`http://localhost:5000/api/patients/${patientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
       });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update patient in database");
+      }
+      return data.patient;
     } catch (error) {
-      console.error("Failed to parse user data from localStorage");
+      console.error("Database update error:", error);
+      alert("Failed to save changes. Please try again.");
+      return null;
     }
-  }, [router]);
+  };
 
-  // Mock data - replace with actual data from your backend
-  const [patients, setPatients] = useState([
-    {
-      id: "P001",
-      name: "Rajesh Kumar",
-      age: 45,
-      gender: "Male",
-      village: "Rampur",
-      district: "Sitapur",
-      state: "Uttar Pradesh",
-      phone: "+91 98765 43210",
-      symptoms: "Persistent cough, fever for 3 days, chest pain",
-      medicalHistory: "Diabetes, Hypertension",
-      status: "awaiting_doctor",
-      priority: "High",
-      aiSummary: "45-year-old male presenting with respiratory symptoms. Requires immediate evaluation.",
-      createdAt: "2024-01-15T10:30:00Z",
-      images: ["/chest-xray.png"],
-      doctorResponse: null,
-      videoConsultationNeeded: false,
-    },
-    {
-      id: "P002",
-      name: "Sunita Devi",
-      age: 32,
-      gender: "Female",
-      village: "Bharatpur",
-      district: "Bharatpur",
-      state: "Rajasthan",
-      phone: "+91 87654 32109",
-      symptoms: "Abdominal pain, nausea, loss of appetite",
-      medicalHistory: "Previous C-section",
-      status: "video_scheduled",
-      priority: "Medium",
-      aiSummary: "32-year-old female with gastrointestinal symptoms. Video consultation scheduled.",
-      createdAt: "2024-01-14T14:20:00Z",
-      images: [],
-      doctorResponse: {
-        action: "request_video",
-        notes: "Need detailed examination via video call",
-        videoScheduled: {
-          date: "2024-01-16",
-          time: "15:00",
-          joinUrl: "https://meet.example.com/abc123",
-        },
-      },
-      videoConsultationNeeded: true,
-    },
-    {
-      id: "P003",
-      name: "Mohan Singh",
-      age: 28,
-      gender: "Male",
-      village: "Khetri",
-      district: "Jhunjhunu",
-      state: "Rajasthan",
-      phone: "+91 76543 21098",
-      symptoms: "Skin rash, itching, swelling",
-      medicalHistory: "No significant history",
-      status: "completed",
-      priority: "Low",
-      aiSummary: "28-year-old male with dermatological symptoms. Treatment provided.",
-      createdAt: "2024-01-13T09:15:00Z",
-      images: ["/skin-rash.png"],
-      doctorResponse: {
-        action: "prescription",
-        prescription: "Antihistamine tablets, topical cream",
-        notes: "Allergic reaction. Follow up in 1 week if symptoms persist.",
-      },
-      videoConsultationNeeded: false,
-    },
-  ])
-
-  // const [doctorInfo] = useState({
-  //   name: "Dr. Priya Sharma",
-  //   specialty: "General Medicine",
-  //   experience: "8 years",
-  //   hospital: "AIIMS Delhi",
-  //   avatar: "/doctor-avatar.png",
-  // })
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "awaiting_doctor":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "video_scheduled":
-        return "bg-blue-100 text-blue-800 border-blue-200"
-      case "completed":
-        return "bg-green-100 text-green-800 border-green-200"
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+  const updatePatientPriority = async (patientId, newPriority) => {
+    const updatedPatient = await savePatientUpdateToDB(patientId, { priority: newPriority });
+    
+    if (updatedPatient) {
+      setPatients((prev) =>
+        prev.map((patient) => (patient.id === patientId ? { ...patient, priority: newPriority } : patient)),
+      )
+      if (selectedPatient?.id === patientId) {
+        setSelectedPatient((prev) => ({ ...prev, priority: newPriority }))
+      }
     }
   }
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "High":
-        return "bg-red-100 text-red-800"
-      case "Medium":
-        return "bg-yellow-100 text-yellow-800"
-      case "Low":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  const updatePatientStatus = async (patientId, newStatus, response = null) => {
+    const updateData = { status: newStatus };
+    if (response) updateData.doctorResponse = response;
+    
+    const updatedPatient = await savePatientUpdateToDB(patientId, updateData);
 
-  const filteredPatients = patients.filter((patient) => {
-    const matchesSearch =
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.village.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.symptoms.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = filterStatus === "all" || patient.status === filterStatus
-    const matchesPriority = filterPriority === "all" || patient.priority === filterPriority
-
-    return matchesSearch && matchesStatus && matchesPriority
-  })
-
-  const updatePatientPriority = (patientId, newPriority) => {
-    setPatients((prev) =>
-      prev.map((patient) => (patient.id === patientId ? { ...patient, priority: newPriority } : patient)),
-    )
-    if (selectedPatient?.id === patientId) {
-      setSelectedPatient((prev) => ({ ...prev, priority: newPriority }))
-    }
-  }
-
-  const updatePatientStatus = (patientId, newStatus, response = null) => {
-    setPatients((prev) =>
-      prev.map((patient) =>
-        patient.id === patientId
-          ? {
-              ...patient,
-              status: newStatus,
-              doctorResponse: response,
-              videoConsultationNeeded: response?.action === "request_video",
-            }
-          : patient,
-      ),
-    )
-    if (selectedPatient?.id === patientId) {
-      setSelectedPatient((prev) => ({
-        ...prev,
-        status: newStatus,
-        doctorResponse: response,
-        videoConsultationNeeded: response?.action === "request_video",
-      }))
+    if (updatedPatient) {
+      setPatients((prev) =>
+        prev.map((patient) =>
+          patient.id === patientId
+            ? {
+                ...patient,
+                status: newStatus,
+                doctorResponse: response,
+                videoConsultationNeeded: response?.action === "request_video",
+              }
+            : patient,
+        ),
+      )
+      if (selectedPatient?.id === patientId) {
+        setSelectedPatient((prev) => ({
+          ...prev,
+          status: newStatus,
+          doctorResponse: response,
+          videoConsultationNeeded: response?.action === "request_video",
+        }))
+      }
     }
   }
 
@@ -216,7 +150,7 @@ export default function DoctorDashboard() {
       videoScheduled: {
         date,
         time,
-        joinUrl: `https://meet.example.com/${patientId}`,
+        joinUrl: `https://meet.medisense.com/${patientId}`,
       },
       timestamp: new Date().toISOString(),
     }
@@ -234,110 +168,116 @@ export default function DoctorDashboard() {
   }
 
   const handleLogout = () => {
-    router.push("/auth/doctor/login")
+    logout();
+    router.push("/");
+  }
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading Doctor Dashboard...</div>
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card shadow-sm border-b border-border">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Link href="/" className="flex items-center space-x-2">
-                <Heart className="h-8 w-8 text-blue-600" />
-                <span className="font-bold text-xl text-blue-600">MediSense</span>
-              </Link>
-              <span className="text-muted-foreground">|</span>
-              <span className="text-lg font-semibold text-foreground">Doctor Dashboard</span>
-            </div>
+    <ProtectedRoute allowedRole="Doctor" redirectTo="/auth/doctor/login">
+      <div className="min-h-screen bg-background">
+        <header className="bg-card shadow-sm border-b border-border">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Link href="/" className="flex items-center space-x-2">
+                  <Heart className="h-8 w-8 text-blue-600" />
+                  <span className="font-bold text-xl text-blue-600">MediSense</span>
+                </Link>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-lg font-semibold text-foreground">Doctor Dashboard</span>
+              </div>
 
-            <div className="flex items-center space-x-4">
-              <NotificationSystem patients={patients} />
+              <div className="flex items-center space-x-4">
+                <NotificationSystem patients={patients} />
 
-              <ThemeToggle />
+                <ThemeToggle />
 
-              <div className="relative">
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-accent transition-colors"
-                >
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-foreground">{doctorInfo.name}</p>
-                    <p className="text-xs text-muted-foreground">{doctorInfo.specialty} • {doctorInfo.id}</p>
-                  </div>
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </button>
-
-                {showProfileMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
-                    <div className="py-1">
-                      <button
-                        onClick={() => setShowProfileMenu(false)}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
-                      >
-                        <User className="h-4 w-4" />
-                        <span>View Profile</span>
-                      </button>
-                      <button
-                        onClick={() => setShowProfileMenu(false)}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
-                      >
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </button>
-                      <hr className="my-1 border-border" />
-                      <button
-                        onClick={() => { logout(); router.push("/"); }}
-                        className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Logout</span>
-                      </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-foreground">{doctorInfo.name}</p>
+                      <p className="text-xs text-muted-foreground">{doctorInfo.specialty} • {doctorInfo.id}</p>
                     </div>
-                  </div>
-                )}
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+
+                  {showProfileMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
+                      <div className="py-1">
+                        <button
+                          onClick={() => setShowProfileMenu(false)}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <User className="h-4 w-4" />
+                          <span>View Profile</span>
+                        </button>
+                        <button
+                          onClick={() => setShowProfileMenu(false)}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
+                        >
+                          <Settings className="h-4 w-4" />
+                          <span>Settings</span>
+                        </button>
+                        <hr className="my-1 border-border" />
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="flex">
-        {/* Patient List Sidebar */}
-        <div className="w-1/3 bg-card border-r border-border h-screen">
-          <PatientQueue patients={patients} selectedPatient={selectedPatient} onPatientSelect={setSelectedPatient} />
-        </div>
+        <div className="flex">
+          {/* Patient List Sidebar */}
+          <div className="w-1/3 bg-card border-r border-border h-screen">
+            <PatientQueue patients={patients} selectedPatient={selectedPatient} onPatientSelect={setSelectedPatient} />
+          </div>
 
-        {/* Patient Details Panel */}
-        <div className="flex-1 p-6">
-          {selectedPatient ? (
-            <PatientDetailsPanel
-              patient={selectedPatient}
-              onUpdatePriority={updatePatientPriority}
-              onScheduleVideo={scheduleVideoCall}
-              onProvidePrescription={providePrescription}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <Stethoscope className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-foreground mb-2">Select a Patient</h3>
-                <p className="text-muted-foreground">Choose a patient from the list to view details and provide care</p>
+          {/* Patient Details Panel */}
+          <div className="flex-1 p-6">
+            {selectedPatient ? (
+              <PatientDetailsPanel
+                patient={selectedPatient}
+                onUpdatePriority={updatePatientPriority}
+                onScheduleVideo={scheduleVideoCall}
+                onProvidePrescription={providePrescription}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <Stethoscope className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-medium text-foreground mb-2">Select a Patient</h3>
+                  <p className="text-muted-foreground">Choose a patient from the list to view details and provide care</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {showProfileMenu && <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />}
-    </div>
+        {showProfileMenu && <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />}
+      </div>
+    </ProtectedRoute>
   )
 }
 
-// Patient Details Panel Component
 function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onProvidePrescription }) {
   const [activeTab, setActiveTab] = useState("details")
   const [prescription, setPrescription] = useState("")
@@ -438,7 +378,7 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
 
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">AI Summary</Label>
-                <p className="text-foreground mt-1">{patient.aiSummary}</p>
+                <p className="text-foreground mt-1 whitespace-pre-wrap">{patient.aiSummary}</p>
               </div>
 
               {patient.images && patient.images.length > 0 && (

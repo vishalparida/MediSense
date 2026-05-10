@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { Patient } = require('../models/Patient'); // Adjust path to your Patient model
-
-
+// GET /api/patients - Fetch patients (Filtered by facilitator OR doctor)
 router.get('/', async (req, res) => {
   try {
-    const { facilitatorId } = req.query;
+    const { facilitatorId, doctorId } = req.query;
     
-    // If a facilitator ID is provided, only fetch their patients. Otherwise, fetch all.
-    const query = facilitatorId ? { createdBy: facilitatorId } : {};
+    // Build the query dynamically based on who is asking
+    let query = {};
+    if (facilitatorId) query.createdBy = facilitatorId;
+    if (doctorId) query.assignedDoctor = doctorId;
 
     const patients = await Patient.find(query)
-      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic') // Pull in doctor details
+      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic') 
       .sort({ createdAt: -1 }); // Newest first
 
     res.status(200).json({

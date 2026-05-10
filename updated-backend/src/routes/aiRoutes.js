@@ -1,35 +1,48 @@
 const express = require('express');
 const router = express.Router();
-const { GoogleGenAI } = require('@google/genai');
+const Groq = require('groq-sdk');
 
-// Initialize the Gemini SDK
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize Groq
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 router.post('/generate-report', async (req, res) => {
   try {
     const { age, gender, symptoms, medicalHistory } = req.body;
 
-    // Design the prompt to enforce a strict, professional medical format
     const prompt = `Act as a medical triage assistant. Analyze the following patient details:
     Age: ${age}
     Gender: ${gender}
     Symptoms: ${symptoms}
     Medical History: ${medicalHistory || 'None reported'}
 
-    Provide a concise 2-3 line summary of the patient profile and symptoms. 
-    Clearly State the perceived seriousness (Low, Medium, or High).
-    State clearly if a video consultation is recommended based on the symptoms and history. 
-    Keep it strictly professional, objective, and brief.
-    IMPORTANT: Do not use any Markdown formatting, bold text, or asterisks in your response. Output plain text only.`;
+    Provide exactly the following information and nothing else:
+    1. A concise 2-3 line summary of the patient profile, current symptoms, and medical history.
+    2. Case Severity: [State strictly "Low", "Medium", or "High"].
+    3. Action: [State strictly "Video Consultation Required" or "Textual Triage Sufficient"].
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    CRITICAL RULES:
+    - DO NOT suggest probable causes or diseases.
+    - DO NOT recommend any medical tests, diagnostics, or treatments.
+    - DO NOT use any Markdown formatting, asterisks, or bold text. Output plain text only.`;
+
+    // Call Groq using the upgraded Llama 3.1 model
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      // 👇 UPDATED MODEL NAME HERE 👇
+      model: "llama-3.1-8b-instant", 
+      temperature: 0.2, 
     });
+
+    const report = chatCompletion.choices[0]?.message?.content || "Failed to generate text.";
 
     res.status(200).json({ 
       success: true, 
-      report: response.text 
+      report: report 
     });
 
   } catch (error) {

@@ -5,30 +5,74 @@ import { useParams, useRouter } from "next/navigation"
 import PatientDetail from "@/components/PatientDetail"
 import { ArrowLeft, Heart } from "lucide-react"
 import Link from "next/link"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 export default function PatientDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [patient, setPatient] = useState(null)
+  const [doctors, setDoctors] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Load patient data
-    fetch("/data/mockPatients.json")
-      .then((res) => res.json())
-      .then((data) => {
-        const foundPatient = data.patients.find((p) => p.id === params.id)
-        setPatient(foundPatient)
+    if (!params.id) return;
+
+    const fetchPatientAndDoctors = async () => {
+      try {
+        // Fetch both the specific patient and the doctors list simultaneously
+        const [patientRes, doctorsRes] = await Promise.all([
+          fetch(`http://localhost:5000/api/patients/${params.id}`),
+          fetch(`http://localhost:5000/api/doctors`)
+        ]);
+
+        const patientData = await patientRes.json();
+        const doctorsData = await doctorsRes.json();
+
+        // 1. Format and set the Patient Data
+        if (patientRes.ok && patientData.success) {
+          const p = patientData.patient;
+          setPatient({
+            ...p,
+            id: p._id,
+            images: p.images ? p.images.map(img => img.url || img) : [],
+            assignedDoctor: p.assignedDoctor ? {
+              id: p.assignedDoctor._id,
+              name: p.assignedDoctor.fullName || "Doctor",
+              specialty: p.assignedDoctor.specialization || "Specialist",
+              avatar: "/doctor-avatar.png"
+            } : null
+          });
+        }
+
+        // 2. Format and set the Doctors list (needed for the PatientDetail component)
+        if (doctorsRes.ok && doctorsData.success) {
+          const formattedDoctors = doctorsData.doctors.map(doc => ({
+            id: doc._id,
+            name: doc.fullName || "Doctor",
+            specialty: doc.specialization || "General Medicine",
+            experience: doc.yearsOfExperience ? `${doc.yearsOfExperience} years` : "",
+            location: doc.currentHospitalClinic || doc.city || "",
+            avatar: "/doctor-avatar.png"
+          }));
+          setDoctors(formattedDoctors);
+        }
+
+      } catch (err) {
+        console.error("Error loading data from database:", err)
+      } finally {
         setLoading(false)
-      })
-      .catch((err) => {
-        console.error("Error loading patient data:", err)
-        setLoading(false)
-      })
+      }
+    };
+
+    fetchPatientAndDoctors();
   }, [params.id])
 
   const handleStatusUpdate = (patientId, newStatus) => {
     setPatient((prev) => ({ ...prev, status: newStatus }))
+  }
+
+  const handlePatientUpdate = (updatedPatient) => {
+    setPatient(updatedPatient);
   }
 
   if (loading) {
@@ -61,33 +105,40 @@ export default function PatientDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
-                <Heart className="h-8 w-8 text-blue-600" />
-                <span className="font-bold text-xl text-blue-600">MediSense</span>
-              </Link>
-              <span className="text-gray-300">|</span>
-              <Link href="/facilitator" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700">
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back to Dashboard</span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Patient Details</span>
+    <ProtectedRoute allowedRole="Facilitator" redirectTo="/auth/facilitator/login">
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Link href="/" className="flex items-center space-x-2">
+                  <Heart className="h-8 w-8 text-blue-600" />
+                  <span className="font-bold text-xl text-blue-600">MediSense</span>
+                </Link>
+                <span className="text-gray-300">|</span>
+                <Link href="/facilitator" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700">
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back to Dashboard</span>
+                </Link>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">Patient Details</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Patient Detail */}
-      <div className="max-w-4xl mx-auto">
-        <PatientDetail patient={patient} onStatusUpdate={handleStatusUpdate} />
+        {/* Patient Detail */}
+        <div className="max-w-4xl mx-auto py-6">
+          <PatientDetail 
+            patient={patient} 
+            doctors={doctors}
+            onStatusUpdate={handleStatusUpdate} 
+            onPatientUpdate={handlePatientUpdate}
+          />
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }
