@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     console.error("Error fetching patients:", error);
     res.status(500).json({ success: false, message: error.message });
   }
-});
+}); 
 
 // POST /api/patients - Create a new patient
 router.post('/', async (req, res) => {

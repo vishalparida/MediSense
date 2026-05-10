@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import ImageUploader from "@/components/ImageUploader"
 
 export default function PatientDetail({ patient, onStatusUpdate, doctors, onPatientUpdate }) {
+  // 👇 THE MAGIC FIX: Lock the ID securely so it can never be undefined 👇
+  const securePatientId = patient?.id || patient?._id;
+
   const [isEditing, setIsEditing] = useState(false)
   const [isRegeneratingReport, setIsRegeneratingReport] = useState(false)
   const [showSendModal, setShowSendModal] = useState(false)
@@ -56,10 +60,12 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
     setHasChanges(true)
   }
 
-  // --- UPDATED: Save Changes to DB ---
+  // --- Save Changes to DB ---
   const handleSaveChanges = async () => {
+    if (!securePatientId) return alert("Error: Missing Patient ID");
+
     try {
-      const response = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+      const response = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editedData),
@@ -67,10 +73,13 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
       const data = await response.json();
 
       if (response.ok) {
+        // Force merge the old patient data with the new so the ID is never lost
+        const returnedPatient = data.patient || data.data || data;
         const updatedPatient = {
-          ...data.patient,
-          id: data.patient._id,
-          assignedDoctor: patient.assignedDoctor // Preserve existing assigned doctor
+          ...patient, 
+          ...returnedPatient,
+          id: securePatientId, 
+          assignedDoctor: patient.assignedDoctor 
         };
         onPatientUpdate(updatedPatient);
         setIsEditing(false);
@@ -100,11 +109,12 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
     setHasChanges(false)
   }
 
-  // --- UPDATED: Call Real AI and Save to DB ---
+  // --- Call Real AI and Save to DB ---
   const handleRegenerateReport = async () => {
+    if (!securePatientId) return alert("Error: Missing Patient ID");
     setIsRegeneratingReport(true);
+
     try {
-      // 1. Generate new report
       const aiResponse = await fetch("http://localhost:5000/api/ai/generate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,8 +129,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
       const aiData = await aiResponse.json();
 
       if (aiResponse.ok) {
-        // 2. Save new report to Database
-        const updateResponse = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+        const updateResponse = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ aiSummary: aiData.report }),
@@ -129,13 +138,15 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
         const updateData = await updateResponse.json();
 
         if (updateResponse.ok) {
+          const returnedPatient = updateData.patient || updateData.data || updateData;
           const updatedPatient = {
-            ...updateData.patient,
-            id: updateData.patient._id,
+            ...patient,
+            ...returnedPatient,
+            id: securePatientId,
             assignedDoctor: patient.assignedDoctor
           };
           onPatientUpdate(updatedPatient);
-          setHasChanges(true); // Prompts them to send to the doctor!
+          setHasChanges(true); 
         }
       } else {
         alert("AI Generation failed: " + aiData.message);
@@ -147,19 +158,19 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
     }
   }
 
-  // --- UPDATED: Send fully updated case to Doctor in DB ---
+  // --- Send fully updated case to Doctor in DB ---
   const handleSendToDoctor = async () => {
-    if (!selectedDoctor) return
+    if (!selectedDoctor || !securePatientId) return;
     setIsSending(true)
 
     try {
       const payload = {
-        ...editedData, // Pass any unsaved edits too
+        ...editedData, 
         assignedDoctor: selectedDoctor,
         status: "awaiting_doctor"
       };
 
-      const response = await fetch(`http://localhost:5000/api/patients/${patient.id}`, {
+      const response = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -169,9 +180,12 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
 
       if (response.ok) {
         const doctorDetails = doctors.find((d) => d.id === selectedDoctor);
+        const returnedPatient = data.patient || data.data || data;
+        
         const updatedPatient = {
-          ...data.patient,
-          id: data.patient._id,
+          ...patient,
+          ...returnedPatient,
+          id: securePatientId,
           assignedDoctor: doctorDetails ? { ...doctorDetails } : null
         };
 
@@ -210,12 +224,12 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                       onChange={(e) => handleInputChange("name", e.target.value)}
                       className="text-xl font-bold"
                     />
-                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {patient.id}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {securePatientId}</p>
                   </div>
                 ) : (
                   <>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{patient.name}</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {patient.id}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Patient ID: {securePatientId}</p>
                   </>
                 )}
 
@@ -348,37 +362,38 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
           </div>
         </div>
 
-        {/* Medical Images */}
+        {/* Medical Images & AI Scan */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
               <ImageIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              <span>Medical Images</span>
+              <span>Medical Images & AI Analysis</span>
             </h2>
-            {isEditing && (
-              <div>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="image-upload-edit"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => document.getElementById("image-upload-edit").click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Add Images
-                </Button>
-              </div>
-            )}
           </div>
+
+          {/* 👇 FIX: Cloudinary + Vision AI Uploader (NOW ONLY SHOWS IN EDIT MODE) 👇 */}
+          {isEditing && (
+            <div className="mb-6">
+              <ImageUploader 
+                patientId={securePatientId} 
+                currentImages={patient.images || []}
+                onImageProcessed={(returnedData) => {
+                  const freshPatient = returnedData?.patient || returnedData?.data || returnedData;
+                  onPatientUpdate({
+                    ...patient,
+                    ...freshPatient,
+                    id: securePatientId,
+                    assignedDoctor: patient.assignedDoctor
+                  });
+                }} 
+              />
+            </div>
+          )}
+
+          {/* Image Gallery */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {editedData.images?.map((imageObj, index) => {
+            {/* Show images if they exist */}
+            {(isEditing ? editedData.images : patient.images)?.map((imageObj, index) => {
               const url = typeof imageObj === 'string' ? imageObj : imageObj?.url;
               return (
                 <div key={index} className="relative group">
@@ -397,7 +412,7 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
                     </button>
                   )}
                   {!isEditing && (
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center pointer-events-none">
                       <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">
                         View Full Size
                       </span>
@@ -407,6 +422,26 @@ export default function PatientDetail({ patient, onStatusUpdate, doctors, onPati
               );
             })}
           </div>
+
+          {/* 👇 FIX: Show a friendly message if there are no images yet 👇 */}
+          {!(isEditing ? editedData.images : patient.images)?.length && !isEditing && (
+             <div className="text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-dashed border-gray-200 dark:border-gray-700">
+               <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+               <p className="text-sm text-gray-500 dark:text-gray-400">No medical scans have been uploaded yet.</p>
+             </div>
+          )}
+          
+          {/* AI Image Analysis Results */}
+          {patient.aiImageAnalysis && (
+            <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+              <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center">
+                <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary Analysis
+              </h3>
+              <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap">
+                {patient.aiImageAnalysis}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* AI Report with Regenerate */}
