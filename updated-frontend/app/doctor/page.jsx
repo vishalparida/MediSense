@@ -144,16 +144,22 @@ export default function DoctorDashboard() {
   }
 
   const scheduleVideoCall = (patientId, date, time) => {
+    // Generate a unique, secure, and WORKING video room link instantly
+    const uniqueRoomId = `MediSense-Consult-${patientId}-${Date.now().toString().slice(-4)}`;
+    const workingVideoLink = `https://meet.jit.si/${uniqueRoomId}`;
+
     const response = {
       action: "request_video",
-      notes: "Video consultation scheduled for detailed examination",
+      notes: "Video consultation scheduled for detailed examination.",
       videoScheduled: {
         date,
         time,
-        joinUrl: `https://meet.medisense.com/${patientId}`,
+        joinUrl: workingVideoLink, 
       },
       timestamp: new Date().toISOString(),
     }
+    
+    // This calls the function we built earlier to save it to MongoDB!
     updatePatientStatus(patientId, "video_scheduled", response)
   }
 

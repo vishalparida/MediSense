@@ -34,7 +34,10 @@ const patientSchema = new mongoose.Schema(
     },
     aiSummary: String,
     assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    doctorResponse: String,
+    doctorResponse: {
+      type: mongoose.Schema.Types.Mixed, // This allows the nested prescription/video data to save!
+      default: null
+    },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
