@@ -38,4 +38,45 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/profile/:id - Update user profile
+// PUT /api/profile/:id - Update user profile
+router.put('/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Explicitly map frontend data to database fields
+    const updateFields = {
+      fullName: req.body.name,
+      phoneNumber: req.body.phone,
+      villageArea: req.body.village,
+      district: req.body.district,
+      state: req.body.state,
+      educationBackground: req.body.education,
+      healthcareExperience: req.body.experience,
+      languagesSpoken: req.body.languages,
+    };
+
+    // Clean up any undefined fields so we don't accidentally overwrite data
+    Object.keys(updateFields).forEach(key => updateFields[key] === undefined && delete updateFields[key]);
+
+    // THE MAGIC BULLET: strict: false forces MongoDB to save these fields 
+    // even if it thinks they are missing from the schema!
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateFields },
+      { new: true, runValidators: true, strict: false } 
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({ success: true, user: updatedUser });
+
+  } catch (error) {
+    console.error("Profile update error:", error);
+    res.status(500).json({ success: false, message: "Server error updating profile" });
+  }
+});
+
 module.exports = router;

@@ -99,20 +99,30 @@ const Doctor = User.discriminator(
 const Facilitator = User.discriminator(
   'Facilitator',
   new mongoose.Schema({
-    district: {
-      type: String,
-      required: [true, 'Please provide a district'],
-    },
     villageArea: {
       type: String,
-      required: [true, 'Please provide a village or area'],
+      default: ""
+    },
+    district: {
+      type: String,
+      default: ""
+    },
+    state: {
+      type: String,
+      default: ""
     },
     educationBackground: {
       type: String,
+      default: ""
     },
     healthcareExperience: {
       type: String,
+      default: ""
     },
+    languagesSpoken: {
+      type: String,
+      default: ""
+    }, 
   })
 );
 
