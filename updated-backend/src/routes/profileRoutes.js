@@ -4,23 +4,57 @@ const { User} = require('../models/User')
 const { Patient } = require('../models/Patient')
 
 // GET /api/profile/:id - Fetch user profile and their patient stats
+// GET /api/profile/:id - Fetch user profile and their patient stats
 router.get('/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
-    // 1. Find the user (exclude the password field for security)
+    // 1. Find the user
     const user = await User.findById(userId).select('-password');
-
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // 2. Calculate patient statistics for this specific facilitator
-    const totalPatients = await Patient.countDocuments({ createdBy: userId });
-    const completedCases = await Patient.countDocuments({ createdBy: userId, status: 'completed' });
+    // 2. Fetch all patients created by this facilitator
+    const allPatients = await Patient.find({ createdBy: userId });
+
+    // 3. Calculate basic stats
+    const totalPatients = allPatients.length;
+    const completedCases = allPatients.filter(p => p.status === 'completed').length;
     const activeCases = totalPatients - completedCases;
 
-    // 3. Send data back to frontend
+    // 4. REAL-TIME AVERAGE RESPONSE CALCULATOR
+    let avgResponseTime = "N/A";
+    
+    // Find only the patients that the doctor has actually responded to
+    const respondedPatients = allPatients.filter(p => p.doctorResponse && p.doctorResponse.timestamp);
+
+    if (respondedPatients.length > 0) {
+      // Add up the time difference (in milliseconds) for every responded patient
+      const totalTimeMs = respondedPatients.reduce((sum, p) => {
+        const createdTime = new Date(p.createdAt).getTime();
+        const responseTime = new Date(p.doctorResponse.timestamp).getTime();
+        return sum + (responseTime - createdTime);
+      }, 0);
+
+      // Get the average in milliseconds
+      const avgMs = totalTimeMs / respondedPatients.length;
+
+      // Convert milliseconds to hours
+      const avgHours = avgMs / (1000 * 60 * 60);
+
+      // Format it nicely for the UI
+      if (avgHours < 1) {
+        // If it's less than an hour, show minutes
+        const avgMins = Math.round(avgHours * 60);
+        avgResponseTime = `${avgMins} mins`;
+      } else {
+        // Otherwise, show hours rounded to 1 decimal place
+        avgResponseTime = `${avgHours.toFixed(1)} hours`;
+      }
+    }
+
+    // 5. Send dynamic data back to frontend
     res.status(200).json({
       success: true,
       user: user,
@@ -28,7 +62,7 @@ router.get('/:id', async (req, res) => {
         totalPatients,
         completedCases,
         activeCases,
-        avgResponseTime: "2.5 hours" // You can build a real calculator for this later!
+        avgResponseTime // This is now live, calculated data!
       }
     });
 

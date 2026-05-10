@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 import {
   User,
   MapPin,
@@ -42,6 +44,8 @@ const stateDistrictMap = {
 };
 
 export default function FacilitatorProfile({ onLogout }) {
+  const { logout } = useAuth();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -95,6 +99,10 @@ export default function FacilitatorProfile({ onLogout }) {
 
   const handleInputChange = (field, value) => {
     setEditedData(prev => ({ ...prev, [field]: value }));
+  };
+  const handleLogout = () => {
+    logout();
+    router.push("/"); // Or router.push("/auth/facilitator/login") depending on your preference
   };
 
   const handleCancelEdit = () => {
@@ -170,7 +178,7 @@ export default function FacilitatorProfile({ onLogout }) {
               </Button>
             </>
           )}
-          <Button variant="destructive" onClick={onLogout}>
+          <Button variant="destructive" onClick={handleLogout}>
             <LogOut className="h-4 w-4 mr-2" />
             Logout
           </Button>
