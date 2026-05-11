@@ -1,13 +1,49 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { User, Upload, Brain, Send, X, CheckCircle } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { User, Upload, Brain, Send, X, CheckCircle } from "lucide-react";
+
+const formatReportText = (text) => {
+  if (!text) return null;
+  return text.split("\n").map((line, lineIndex) => {
+    if (!line.trim()) {
+      return <div key={lineIndex} className="h-2" />;
+    }
+    const parts = line.split(/\*\*(.*?)\*\*/g);
+    return (
+      <div key={lineIndex} className="mb-2">
+        {parts.map((part, partIndex) => {
+          if (partIndex % 2 === 1) {
+            return (
+              <span key={partIndex} className="font-bold">
+                {part}
+              </span>
+            );
+          }
+          return <span key={partIndex}>{part}</span>;
+        })}
+      </div>
+    );
+  });
+};
 
 export default function NewPatientForm({ doctors, onPatientAdd }) {
   const [formData, setFormData] = useState({
@@ -21,50 +57,127 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     symptoms: "",
     medicalHistory: "",
     images: [],
-  })
+  });
 
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
-  const [aiReport, setAiReport] = useState("")
-  const [selectedDoctor, setSelectedDoctor] = useState("")
-  const [showDoctorSelection, setShowDoctorSelection] = useState(false)
-  const [isSending, setIsSending] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [aiReport, setAiReport] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [showDoctorSelection, setShowDoctorSelection] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+
+  const DRAFT_KEY = "newPatientOnboardingDraft";
+
+  const saveDraft = (draft) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  };
+
+  const clearDraft = () => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(DRAFT_KEY);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedDraft = localStorage.getItem(DRAFT_KEY);
+    if (storedDraft) {
+      try {
+        const parsed = JSON.parse(storedDraft);
+        if (parsed?.formData) {
+          setFormData((prev) => ({ ...prev, ...parsed.formData }));
+        }
+        if (parsed?.aiReport) {
+          setAiReport(parsed.aiReport);
+        }
+        if (parsed?.showDoctorSelection) {
+          setShowDoctorSelection(parsed.showDoctorSelection);
+        }
+        if (parsed?.selectedDoctor) {
+          setSelectedDoctor(parsed.selectedDoctor);
+        }
+      } catch (error) {
+        console.warn("Failed to restore onboarding draft:", error);
+      }
+    }
+    setIsDraftRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftRestored) return;
+
+    saveDraft({
+      formData,
+      aiReport,
+      selectedDoctor,
+      showDoctorSelection,
+    });
+  }, [
+    formData,
+    aiReport,
+    selectedDoctor,
+    showDoctorSelection,
+    isDraftRestored,
+  ]);
+
+  const isFormValid = () => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.age.trim() !== "" &&
+      parseInt(formData.age) > 0 &&
+      formData.gender !== "" &&
+      formData.phone.trim() !== "" &&
+      formData.village.trim() !== "" &&
+      formData.district.trim() !== "" &&
+      formData.state !== "" &&
+      formData.symptoms.trim() !== ""
+    );
+  };
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files)
-    // Note: URL.createObjectURL creates local browser links. 
+    const files = Array.from(e.target.files);
+    // Note: URL.createObjectURL creates local browser links.
     // For a real app, you'd upload these to S3/Cloudinary first and save those URLs.
-    const imageUrls = files.map((file) => URL.createObjectURL(file))
-    setFormData((prev) => ({ ...prev, images: [...prev.images, ...imageUrls] }))
-  }
+    const imageUrls = files.map((file) => URL.createObjectURL(file));
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...imageUrls],
+    }));
+  };
 
   const removeImage = (index) => {
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
-    }))
-  }
+    }));
+  };
 
   const generateAIReport = async () => {
     setIsGeneratingReport(true);
-    
+
     try {
-      const response = await fetch("http://localhost:5000/api/ai/generate-report", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "http://localhost:5000/api/ai/generate-report",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            age: formData.age,
+            gender: formData.gender,
+            symptoms: formData.symptoms,
+            medicalHistory: formData.medicalHistory,
+            images: formData.images,
+          }),
         },
-        body: JSON.stringify({
-          age: formData.age,
-          gender: formData.gender,
-          symptoms: formData.symptoms,
-          medicalHistory: formData.medicalHistory,
-        }),
-      });
+      );
 
       const data = await response.json();
 
@@ -82,89 +195,127 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     }
   };
 
- // --- UPDATED: Now connects to your MongoDB Backend ---
- const sendToDoctor = async () => {
-  if (!selectedDoctor) return
+  // --- UPDATED: Now connects to your MongoDB Backend ---
+  const sendToDoctor = async () => {
+    if (!selectedDoctor) return;
 
-  setIsSending(true)
+    setIsSending(true);
 
-  try {
-    // 1. Get the logged-in facilitator's ID from localStorage
-    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    const facilitatorId = storedUser._id;
+    try {
+      // 1. Get the logged-in facilitator's ID from localStorage
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const facilitatorId = storedUser._id;
 
-    // 2. Prepare the payload matching your Mongoose Schema
-    const payload = {
-      ...formData,
-      age: Number(formData.age), // Ensure age is a number
-      images: formData.images.map(img => ({ url: img, label: "Uploaded Image" })), // Map to your imageSchema
-      aiSummary: aiReport,
-      assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
-      createdBy: facilitatorId
-    };
-
-    // 3. Send to backend
-    const response = await fetch("http://localhost:5000/api/patients", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      
-      // 👇 ADDED FIX: Find the full doctor details from the frontend array
-      const selectedDoctorDetails = doctors.find(doc => doc.id === selectedDoctor);
-
-      const newFrontendPatient = {
-        ...data.patient,
-        id: data.patient._id, 
-        // 👇 Manually attach the full doctor object so the UI updates instantly
-        assignedDoctor: selectedDoctorDetails ? {
-          id: selectedDoctorDetails.id,
-          name: selectedDoctorDetails.name,
-          specialty: selectedDoctorDetails.specialty,
-          avatar: selectedDoctorDetails.avatar
-        } : null
+      // 2. Prepare the payload matching your Mongoose Schema
+      const payload = {
+        ...formData,
+        age: Number(formData.age), // Ensure age is a number
+        images: formData.images.map((img) => ({
+          url: img,
+          label: "Uploaded Image",
+        })), // Map to your imageSchema
+        aiSummary: aiReport,
+        assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
+        createdBy: facilitatorId,
       };
 
-      // Pass the fully mapped object
-      onPatientAdd(newFrontendPatient);
-      setIsSending(false)
-      setShowSuccess(true)
+      // 3. Send to backend
+      const response = await fetch("http://localhost:5000/api/patients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormData({
-          name: "", age: "", gender: "", phone: "", village: "", 
-          district: "", state: "", symptoms: "", medicalHistory: "", images: [],
-        })
-        setAiReport("")
-        setSelectedDoctor("")
-        setShowDoctorSelection(false)
-        setShowSuccess(false)
-      }, 2000)
-    } else {
-      alert("Failed to save patient: " + data.message);
+      const data = await response.json();
+
+      if (response.ok) {
+        // 👇 ADDED FIX: Find the full doctor details from the frontend array
+        const selectedDoctorDetails = doctors.find(
+          (doc) => doc.id === selectedDoctor,
+        );
+
+        const newFrontendPatient = {
+          ...data.patient,
+          id: data.patient._id,
+          // 👇 Manually attach the full doctor object so the UI updates instantly
+          assignedDoctor: selectedDoctorDetails
+            ? {
+                id: selectedDoctorDetails.id,
+                name: selectedDoctorDetails.name,
+                specialty: selectedDoctorDetails.specialty,
+                avatar: selectedDoctorDetails.avatar,
+              }
+            : null,
+        };
+
+        // Pass the fully mapped object
+        onPatientAdd(newFrontendPatient);
+        setIsSending(false);
+        setShowSuccess(true);
+        clearDraft();
+
+        // Reset form after 2 seconds
+        setTimeout(() => {
+          setFormData({
+            name: "",
+            age: "",
+            gender: "",
+            phone: "",
+            village: "",
+            district: "",
+            state: "",
+            symptoms: "",
+            medicalHistory: "",
+            images: [],
+          });
+          setAiReport("");
+          setSelectedDoctor("");
+          setShowDoctorSelection(false);
+          setShowSuccess(false);
+        }, 2000);
+      } else {
+        alert("Failed to save patient: " + data.message);
+        setIsSending(false);
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Server error. Ensure your backend is running.");
       setIsSending(false);
     }
-  } catch (error) {
-    console.error("Submission error:", error);
-    alert("Server error. Ensure your backend is running.");
-    setIsSending(false);
-  }
-}
+  };
 
   const indianStates = [
-    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-  ]
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+  ];
 
   if (showSuccess) {
     return (
@@ -173,13 +324,17 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
           <CardContent className="pt-6">
             <div className="text-center">
               <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Patient Added Successfully!</h3>
-              <p className="text-gray-600">The patient has been onboarded and sent to the doctor.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Patient Added Successfully!
+              </h3>
+              <p className="text-gray-600">
+                The patient has been onboarded and sent to the doctor.
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -191,7 +346,8 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             <span>New Patient Onboarding</span>
           </CardTitle>
           <CardDescription>
-            Fill in the patient details and generate an AI report for doctor consultation
+            Fill in the patient details and generate an AI report for doctor
+            consultation
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -221,7 +377,10 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender *</Label>
-                <Select onValueChange={(value) => handleInputChange("gender", value)}>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) => handleInputChange("gender", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
@@ -270,7 +429,10 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="state">State *</Label>
-              <Select onValueChange={(value) => handleInputChange("state", value)}>
+              <Select
+                value={formData.state}
+                onValueChange={(value) => handleInputChange("state", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
@@ -303,7 +465,9 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             <Textarea
               id="medicalHistory"
               value={formData.medicalHistory}
-              onChange={(e) => handleInputChange("medicalHistory", e.target.value)}
+              onChange={(e) =>
+                handleInputChange("medicalHistory", e.target.value)
+              }
               placeholder="Any previous medical conditions, surgeries, medications..."
               rows={2}
             />
@@ -315,7 +479,9 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               <div className="text-center">
                 <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">Upload medical images, reports, or X-rays</p>
+                <p className="text-sm text-gray-600 mb-2">
+                  Upload medical images, reports, or X-rays
+                </p>
                 <input
                   type="file"
                   multiple
@@ -324,7 +490,13 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                   className="hidden"
                   id="image-upload"
                 />
-                <Button type="button" variant="outline" onClick={() => document.getElementById("image-upload").click()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    document.getElementById("image-upload").click()
+                  }
+                >
                   Choose Files
                 </Button>
               </div>
@@ -354,23 +526,31 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
 
           {/* Generate AI Report */}
           <div className="pt-4 border-t">
-            <Button
-              onClick={generateAIReport}
-              disabled={!formData.name || !formData.symptoms || isGeneratingReport}
-              className="w-full"
-            >
-              {isGeneratingReport ? (
-                <>
-                  <Brain className="h-4 w-4 mr-2 animate-spin" />
-                  Generating AI Report...
-                </>
-              ) : (
-                <>
-                  <Brain className="h-4 w-4 mr-2" />
-                  Generate AI Report
-                </>
+            <div className="relative group">
+              <Button
+                onClick={generateAIReport}
+                disabled={!isFormValid() || isGeneratingReport}
+                className="w-full"
+              >
+                {isGeneratingReport ? (
+                  <>
+                    <Brain className="h-4 w-4 mr-2 animate-spin" />
+                    Generating AI Report...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="h-4 w-4 mr-2" />
+                    Generate AI Report
+                  </>
+                )}
+              </Button>
+              {!isFormValid() && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                  Please fill all required fields
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+                </div>
               )}
-            </Button>
+            </div>
           </div>
 
           {/* AI Report Display */}
@@ -383,7 +563,9 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-700 leading-relaxed">{aiReport}</p>
+                <div className="text-gray-700 leading-relaxed">
+                  {formatReportText(aiReport)}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -391,12 +573,14 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
           {/* Doctor Selection */}
           {showDoctorSelection && (
             <Card className="bg-blue-50 border-blue-200">
-              <CardHeader>  
+              <CardHeader>
                 <CardTitle className="text-lg">Select Doctor</CardTitle>
-                <CardDescription>Choose a doctor to send this patient case to</CardDescription>
+                <CardDescription>
+                  Choose a doctor to send this patient case to
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-3">
+                <div className="grid md:grid-cols-2 gap-3">
                   {/* 👇 Added safety check here 👇 */}
                   {doctors && doctors.length > 0 ? (
                     doctors.map((doctor) => (
@@ -416,8 +600,12 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                             className="w-10 h-10 rounded-full"
                           />
                           <div>
-                            <h4 className="font-medium text-gray-900">{doctor.name}</h4>
-                            <p className="text-sm text-gray-600">{doctor.specialty}</p>
+                            <h4 className="font-medium text-gray-900">
+                              {doctor.name}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {doctor.specialty}
+                            </p>
                             <p className="text-xs text-gray-500">
                               {doctor.experience} • {doctor.location}
                             </p>
@@ -432,7 +620,11 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                   )}
                 </div>
 
-                <Button onClick={sendToDoctor} disabled={!selectedDoctor || isSending} className="w-full">
+                <Button
+                  onClick={sendToDoctor}
+                  disabled={!selectedDoctor || isSending}
+                  className="w-full"
+                >
                   {isSending ? (
                     <>
                       <Send className="h-4 w-4 mr-2 animate-pulse" />
@@ -451,5 +643,5 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

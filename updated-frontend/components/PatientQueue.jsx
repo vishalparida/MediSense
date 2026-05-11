@@ -30,7 +30,7 @@ export default function PatientQueue({
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState("desc");
-  const [viewMode, setViewMode] = useState("all");
+  const [viewMode, setViewMode] = useState("active");
 
   const filteredAndSortedPatients = patients
     .filter((patient) => {

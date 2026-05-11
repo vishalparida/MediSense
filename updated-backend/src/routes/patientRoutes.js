@@ -1,24 +1,27 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { Patient } = require('../models/Patient'); // Adjust path to your Patient model
+const { Patient } = require("../models/Patient"); // Adjust path to your Patient model
 // GET /api/patients - Fetch patients (Filtered by facilitator OR doctor)
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { facilitatorId, doctorId } = req.query;
-    
+
     // Build the query dynamically based on who is asking
     let query = {};
     if (facilitatorId) query.createdBy = facilitatorId;
     if (doctorId) query.assignedDoctor = doctorId;
 
     const patients = await Patient.find(query)
-      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic') 
+      .populate(
+        "assignedDoctor",
+        "fullName specialization currentHospitalClinic",
+      )
       .sort({ createdAt: -1 }); // Newest first
 
     res.status(200).json({
       success: true,
       count: patients.length,
-      patients: patients
+      patients: patients,
     });
   } catch (error) {
     console.error("Error fetching patients:", error);
@@ -26,8 +29,26 @@ router.get('/', async (req, res) => {
   }
 });
 
+const normalizeImages = (images) => {
+  if (!Array.isArray(images)) return [];
+  return images
+    .map((img) => {
+      if (typeof img === "string") {
+        return { url: img, label: "Uploaded Image" };
+      }
+      if (typeof img === "object" && img !== null) {
+        return {
+          url: img.url || img.value || "",
+          label: img.label || "Uploaded Image",
+        };
+      }
+      return { url: String(img), label: "Uploaded Image" };
+    })
+    .filter((img) => img.url);
+};
+
 // POST /api/patients - Create a new patient
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const newPatient = new Patient({
       name: req.body.name,
@@ -39,20 +60,20 @@ router.post('/', async (req, res) => {
       state: req.body.state,
       symptoms: req.body.symptoms,
       medicalHistory: req.body.medicalHistory,
-      images: req.body.images, 
+      images: normalizeImages(req.body.images),
       aiSummary: req.body.aiSummary,
       assignedDoctor: req.body.assignedDoctor,
       createdBy: req.body.createdBy,
       status: "awaiting_doctor",
-      priority: "Medium"
+      priority: "Medium",
     });
 
     const savedPatient = await newPatient.save();
-    
+
     res.status(201).json({
       success: true,
-      message: 'Patient created successfully',
-      patient: savedPatient
+      message: "Patient created successfully",
+      patient: savedPatient,
     });
   } catch (error) {
     console.error("Error saving patient:", error);
@@ -61,15 +82,19 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/patients/:id - Fetch a single patient by ID
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id)
-      .populate('assignedDoctor', 'fullName specialization currentHospitalClinic');
-      
+    const patient = await Patient.findById(req.params.id).populate(
+      "assignedDoctor",
+      "fullName specialization currentHospitalClinic",
+    );
+
     if (!patient) {
-      return res.status(404).json({ success: false, message: 'Patient not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
     }
-    
+
     res.status(200).json({ success: true, patient });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -77,23 +102,36 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/patients/:id - Update an existing patient
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
+    const sanitizedBody = {
+      ...req.body,
+    };
+
+    if (req.body.images) {
+      sanitizedBody.images = normalizeImages(req.body.images);
+    }
+
     // Find the patient by ID and update with the new data from req.body
     const updatedPatient = await Patient.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
-      { new: true } // This tells Mongoose to return the updated document
-    ).populate('assignedDoctor', 'fullName specialization currentHospitalClinic');
+      { $set: sanitizedBody },
+      { new: true }, // This tells Mongoose to return the updated document
+    ).populate(
+      "assignedDoctor",
+      "fullName specialization currentHospitalClinic",
+    );
 
     if (!updatedPatient) {
-      return res.status(404).json({ success: false, message: 'Patient not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Patient updated successfully',
-      patient: updatedPatient
+      message: "Patient updated successfully",
+      patient: updatedPatient,
     });
   } catch (error) {
     console.error("Error updating patient:", error);

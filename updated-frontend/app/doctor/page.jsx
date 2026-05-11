@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings } from "lucide-react"
+import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings, Brain } from "lucide-react"
 import NotificationSystem from "@/components/NotificationSystem"
 import PatientQueue from "@/components/PatientQueue"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -383,23 +383,39 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">AI Summary</Label>
+                <Label className="text-sm font-medium text-muted-foreground">AI Medical Summary</Label>
                 <p className="text-foreground mt-1 whitespace-pre-wrap">{patient.aiSummary}</p>
               </div>
 
+              {/* 👇 NEW: Image Gallery and AI Vision Analysis for the Doctor 👇 */}
               {patient.images && patient.images.length > 0 && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Medical Images</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {patient.images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image || "/placeholder.svg"}
-                        alt={`Medical image ${index + 1}`}
-                        className="w-full h-24 object-cover rounded border border-border"
-                      />
+                <div className="pt-4 mt-4 border-t border-border">
+                  <Label className="text-sm font-medium text-muted-foreground mb-3 block">Patient Medical Scans</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {patient.images.map((imgUrl, index) => (
+                      <a key={index} href={imgUrl} target="_blank" rel="noopener noreferrer" className="block relative group">
+                        <img
+                          src={imgUrl || "/placeholder.svg"}
+                          alt={`Scan ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border border-border"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
+                          <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">View Full Size</span>
+                        </div>
+                      </a>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {patient.aiImageAnalysis && (
+                <div className="mt-2 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+                  <Label className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center">
+                    <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary Analysis
+                  </Label>
+                  <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap leading-relaxed">
+                    {patient.aiImageAnalysis}
+                  </p>
                 </div>
               )}
             </CardContent>
