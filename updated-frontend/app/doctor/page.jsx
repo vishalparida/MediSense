@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings, Brain } from "lucide-react"
+import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings, Brain, CheckCircle } from "lucide-react"
 import NotificationSystem from "@/components/NotificationSystem"
 import PatientQueue from "@/components/PatientQueue"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -142,15 +142,16 @@ export default function DoctorDashboard() {
       }
     }
   }
-
   const scheduleVideoCall = (patientId, date, time) => {
-    // Generate a unique, secure, and WORKING video room link instantly
     const uniqueRoomId = `MediSense-Consult-${patientId}-${Date.now().toString().slice(-4)}`;
     const workingVideoLink = `https://meet.jit.si/${uniqueRoomId}`;
 
+    // Grab the patient's existing data so we don't delete their prescriptions/notes!
+    const currentPatient = patients.find(p => p.id === patientId);
+
     const response = {
+      ...currentPatient?.doctorResponse, // Merges existing notes/prescriptions
       action: "request_video",
-      notes: "Video consultation scheduled for detailed examination.",
       videoScheduled: {
         date,
         time,
@@ -159,20 +160,29 @@ export default function DoctorDashboard() {
       timestamp: new Date().toISOString(),
     }
     
-    // This calls the function we built earlier to save it to MongoDB!
     updatePatientStatus(patientId, "video_scheduled", response)
   }
 
-  const providePrescription = (patientId, prescription, notes) => {
+  const providePrescription = (patientId, prescription, notes, isFinalSubmit = false) => {
+    // Grab the patient's existing data so we don't delete their video calls!
+    const currentPatient = patients.find(p => p.id === patientId);
+    
     const response = {
-      action: "prescription",
+      ...currentPatient?.doctorResponse, // Merges existing video links/data
+      action: isFinalSubmit ? "prescription" : (currentPatient?.doctorResponse?.action || "draft"),
       prescription,
       notes,
       timestamp: new Date().toISOString(),
     }
-    updatePatientStatus(patientId, "completed", response)
+    
+    // 👇 FIX: Only change to 'completed' if the doctor explicitly clicked the Final Submit button
+    let finalStatus = currentPatient.status; 
+    if (isFinalSubmit) {
+      finalStatus = "completed";
+    }
+    
+    updatePatientStatus(patientId, finalStatus, response)
   }
-
   const handleLogout = () => {
     logout();
     router.push("/");
@@ -261,6 +271,7 @@ export default function DoctorDashboard() {
           <div className="flex-1 p-6">
             {selectedPatient ? (
               <PatientDetailsPanel
+              key={selectedPatient.id}
                 patient={selectedPatient}
                 onUpdatePriority={updatePatientPriority}
                 onScheduleVideo={scheduleVideoCall}
@@ -286,17 +297,23 @@ export default function DoctorDashboard() {
 
 function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onProvidePrescription }) {
   const [activeTab, setActiveTab] = useState("details")
-  const [prescription, setPrescription] = useState("")
-  const [notes, setNotes] = useState("")
+  
+  const [prescription, setPrescription] = useState(patient.doctorResponse?.prescription || "")
+  const [notes, setNotes] = useState(patient.doctorResponse?.notes || "")
+  
   const [videoDate, setVideoDate] = useState("")
   const [videoTime, setVideoTime] = useState("")
 
-  const handlePrescriptionSubmit = () => {
-    if (prescription.trim()) {
-      onProvidePrescription(patient.id, prescription, notes)
-      setPrescription("")
-      setNotes("")
+  // 1. Just saves the text to the database, DOES NOT complete the case
+  const handleSaveDraft = () => {
+    if (prescription.trim() || notes.trim()) {
+      onProvidePrescription(patient.id, prescription, notes, false)
     }
+  }
+
+  // 2. Saves everything AND marks the case as completed
+  const handleFinalSubmit = () => {
+    onProvidePrescription(patient.id, prescription, notes, true)
   }
 
   const handleVideoSchedule = () => {
@@ -341,6 +358,17 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
               {patient.status === "video_scheduled" && "Video Scheduled"}
               {patient.status === "completed" && "Completed"}
             </Badge>
+
+            {/* 👇 NEW: The Final "Complete Case" Button 👇 */}
+            {patient.status !== "completed" && (
+              <Button 
+                onClick={handleFinalSubmit} 
+                className="bg-green-600 hover:bg-green-700 text-white ml-2"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Mark Case Complete
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -387,7 +415,6 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
                 <p className="text-foreground mt-1 whitespace-pre-wrap">{patient.aiSummary}</p>
               </div>
 
-              {/* 👇 NEW: Image Gallery and AI Vision Analysis for the Doctor 👇 */}
               {patient.images && patient.images.length > 0 && (
                 <div className="pt-4 mt-4 border-t border-border">
                   <Label className="text-sm font-medium text-muted-foreground mb-3 block">Patient Medical Scans</Label>
@@ -426,7 +453,7 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
           <Card>
             <CardHeader>
               <CardTitle>Doctor Response</CardTitle>
-              <CardDescription>Provide your medical assessment and recommendations</CardDescription>
+              <CardDescription>Provide your clinical notes and assessment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -436,9 +463,24 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter your clinical assessment, diagnosis, and recommendations..."
-                  rows={4}
+                  rows={6}
                 />
               </div>
+              
+              {/* Uses handleSaveDraft */}
+              <Button onClick={handleSaveDraft} disabled={!notes.trim()} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                <FileText className="h-4 w-4 mr-2" />
+                Save Notes (Draft)
+              </Button>
+
+              {patient.doctorResponse?.notes && (
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-green-600 dark:text-green-400 flex items-center font-medium">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Notes safely saved to database
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -499,22 +541,22 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
                   rows={4}
                 />
               </div>
-              <Button onClick={handlePrescriptionSubmit} disabled={!prescription.trim()}>
+              
+              {/* Uses handleSaveDraft */}
+              <Button onClick={handleSaveDraft} disabled={!prescription.trim()} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
                 <FileText className="h-4 w-4 mr-2" />
-                Submit Prescription
+                Save Prescription (Draft)
               </Button>
 
               {patient.doctorResponse?.prescription && (
-                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Prescribed Treatment</h4>
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2 flex items-center">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Prescription Saved
+                  </h4>
                   <p className="text-green-800 dark:text-green-200 text-sm whitespace-pre-line">
                     {patient.doctorResponse.prescription}
                   </p>
-                  {patient.doctorResponse.notes && (
-                    <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
-                      <p className="text-green-800 dark:text-green-200 text-sm">{patient.doctorResponse.notes}</p>
-                    </div>
-                  )}
                 </div>
               )}
             </CardContent>
