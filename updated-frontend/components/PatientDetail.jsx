@@ -13,6 +13,7 @@ import {
   Send,
   Brain,
   Upload,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ export default function PatientDetail({
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
 
   const [editedData, setEditedData] = useState({
     name: patient.name,
@@ -291,6 +293,47 @@ export default function PatientDetail({
       alert("Server error.");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // --- Dedicated Doctor Reassignment ---
+  const handleReassignDoctor = async (newDoctorId) => {
+    if (!securePatientId) return;
+
+    try {
+      const payload = {
+        assignedDoctor: newDoctorId,
+        status: "awaiting_doctor" // Reset status so the new doctor knows to review it!
+      };
+
+      const response = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const newDoctorDetails = doctors.find((d) => d.id === newDoctorId);
+        const returnedPatient = data.patient || data.data || data;
+        
+        const updatedPatient = {
+          ...patient,
+          ...returnedPatient,
+          id: securePatientId,
+          assignedDoctor: newDoctorDetails ? { ...newDoctorDetails } : null
+        };
+
+        onPatientUpdate(updatedPatient);
+        setIsReassigning(false);
+        alert(`Case successfully reassigned to ${newDoctorDetails?.name}`);
+      } else {
+        alert("Failed to reassign doctor: " + data.message);
+      }
+    } catch (error) {
+      console.error("Reassign error:", error);
+      alert("Server error.");
     }
   };
 
@@ -616,28 +659,66 @@ export default function PatientDetail({
         </div>
 
         {/* Assigned Doctor */}
-        {patient.assignedDoctor && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Assigned Doctor
-            </h2>
-            <div className="flex items-center space-x-4">
-              <img
-                src={patient.assignedDoctor.avatar || "/placeholder.svg"}
-                alt={patient.assignedDoctor.name}
-                className="w-12 h-12 rounded-full"
-              />
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                  {patient.assignedDoctor.name}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {patient.assignedDoctor.specialty}
-                </p>
-              </div>
-            </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Assigned Doctor</h2>
+            
+            {/* The new Reassign Button */}
+            {patient.assignedDoctor && !isReassigning && (
+              <Button variant="outline" size="sm" onClick={() => setIsReassigning(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reassign Case
+              </Button>
+            )}
           </div>
-        )}
+
+          {!isReassigning ? (
+            patient.assignedDoctor ? (
+              <div className="flex items-center space-x-4">
+                <img
+                  src={patient.assignedDoctor.avatar || "/placeholder.svg"}
+                  alt={patient.assignedDoctor.name}
+                  className="w-12 h-12 rounded-full border dark:border-gray-600"
+                />
+                <div>
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">{patient.assignedDoctor.name}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{patient.assignedDoctor.specialty}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 italic">No doctor currently assigned to this case.</p>
+            )
+          ) : (
+            /* The Reassignment Selection Grid */
+            <div className="space-y-4 mt-2 border-t dark:border-gray-700 pt-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Select a new doctor to transfer this case to:</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                {doctors?.map((doctor) => (
+                  <div
+                    key={doctor.id}
+                    onClick={() => handleReassignDoctor(doctor.id)}
+                    className="p-3 border rounded-lg cursor-pointer transition-all border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <img
+                        src={doctor.avatar || "/placeholder.svg"}
+                        alt={doctor.name}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">{doctor.name}</h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{doctor.specialty}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button variant="ghost" onClick={() => setIsReassigning(false)} className="mt-2 text-gray-500">
+                Cancel Reassignment
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Send to Doctor Button - Only show if changes made or report regenerated */}
         {hasChanges && (
