@@ -5,7 +5,7 @@ const imageSchema = new mongoose.Schema(
     url: String,
     label: String,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const patientSchema = new mongoose.Schema(
@@ -44,11 +44,11 @@ const patientSchema = new mongoose.Schema(
     assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     doctorResponse: {
       type: mongoose.Schema.Types.Mixed, // This allows the nested prescription/video data to save!
-      default: null
+      default: null,
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 patientSchema.index({ createdAt: -1 });

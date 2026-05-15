@@ -44,6 +44,10 @@ export default function FacilitatorDashboard() {
         id: user._id ? `F-${user._id.substring(0, 4).toUpperCase()}` : "F001",
         rawId: user._id // Keep original ID for fetching
       });
+
+      if (localStorage.getItem("newPatientOnboardingDraft")) {
+        setActiveTab("onboard");
+      }
     } catch (error) {
       console.error("Failed to parse user data from localStorage");
     }
