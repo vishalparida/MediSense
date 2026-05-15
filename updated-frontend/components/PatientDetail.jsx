@@ -296,46 +296,50 @@ export default function PatientDetail({
     }
   };
 
-  // --- Dedicated Doctor Reassignment ---
-  const handleReassignDoctor = async (newDoctorId) => {
-    if (!securePatientId) return;
+// --- Dedicated Doctor Reassignment ---
+const handleReassignDoctor = async (newDoctorId) => {
+  if (!securePatientId) return;
 
-    try {
-      const payload = {
-        assignedDoctor: newDoctorId,
-        status: "awaiting_doctor" // Reset status so the new doctor knows to review it!
+  try {
+    const payload = {
+      assignedDoctor: newDoctorId,
+      status: "awaiting_doctor",
+      // 👇 THE FIX: Wipe the previous doctor's work so the new doctor gets a clean slate 👇
+      doctorResponse: null 
+    };
+
+    const response = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      const newDoctorDetails = doctors.find((d) => d.id === newDoctorId);
+      const returnedPatient = data.patient || data.data || data;
+      
+      const updatedPatient = {
+        ...patient,
+        ...returnedPatient,
+        id: securePatientId,
+        assignedDoctor: newDoctorDetails ? { ...newDoctorDetails } : null,
+        // 👇 Ensure React instantly clears the UI without needing a refresh 👇
+        doctorResponse: null 
       };
 
-      const response = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const newDoctorDetails = doctors.find((d) => d.id === newDoctorId);
-        const returnedPatient = data.patient || data.data || data;
-        
-        const updatedPatient = {
-          ...patient,
-          ...returnedPatient,
-          id: securePatientId,
-          assignedDoctor: newDoctorDetails ? { ...newDoctorDetails } : null
-        };
-
-        onPatientUpdate(updatedPatient);
-        setIsReassigning(false);
-        alert(`Case successfully reassigned to ${newDoctorDetails?.name}`);
-      } else {
-        alert("Failed to reassign doctor: " + data.message);
-      }
-    } catch (error) {
-      console.error("Reassign error:", error);
-      alert("Server error.");
+      onPatientUpdate(updatedPatient);
+      setIsReassigning(false);
+      alert(`Case successfully reassigned to ${newDoctorDetails?.name}. Previous medical notes have been cleared.`);
+    } else {
+      alert("Failed to reassign doctor: " + data.message);
     }
-  };
+  } catch (error) {
+    console.error("Reassign error:", error);
+    alert("Server error.");
+  }
+};
 
   return (
     <div className="h-full overflow-y-auto">
