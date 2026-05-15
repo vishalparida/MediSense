@@ -111,7 +111,63 @@ export default function PatientDetail({
     "Uttarakhand",
     "West Bengal",
   ];
+  const [isAnalyzingImages, setIsAnalyzingImages] = useState(false);
+  const handleAnalyzeImages = async () => {
+    // 👇 STRICT FIX: Only grab images that are fully saved in the database!
+    const savedImages = patient.images || [];
+    
+    // Extract pure string URLs safely
+    const validUrls = savedImages
+      .map(img => typeof img === 'string' ? img : img?.url)
+      .filter(Boolean);
 
+    if (validUrls.length === 0) {
+      alert("No saved images found. Please click 'Edit Details', upload images, and click 'Save Details' first.");
+      return;
+    }
+
+    setIsAnalyzingImages(true);
+
+    try {
+      // 1. Send the verified DB URLs to the AI backend
+      const aiResponse = await fetch("http://localhost:5000/api/ai/analyze-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrls: validUrls }) 
+      });
+      
+      const aiData = await aiResponse.json();
+
+      if (aiResponse.ok) {
+        // 2. Save the AI's conclusion directly to MongoDB
+        const updateResponse = await fetch(`http://localhost:5000/api/patients/${securePatientId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aiImageAnalysis: aiData.analysis }),
+        });
+        
+        const updateData = await updateResponse.json();
+
+        if (updateResponse.ok) {
+          const returnedPatient = updateData.patient || updateData.data || updateData;
+          onPatientUpdate({
+            ...patient,
+            ...returnedPatient,
+            id: securePatientId,
+            assignedDoctor: patient.assignedDoctor
+          });
+          setHasChanges(true); // Prompts them to send the updated case to the doctor
+        }
+      } else {
+        alert("AI Analysis failed: " + aiData.message);
+      }
+    } catch (error) {
+      console.error("AI Vision Error:", error);
+      alert("Server error during AI analysis.");
+    } finally {
+      setIsAnalyzingImages(false);
+    }
+  }
   const handleInputChange = useCallback((field, value) => {
     setEditedData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -538,21 +594,30 @@ const handleReassignDoctor = async (newDoctorId) => {
           </div>
 
           {/* 👇 FIX: Cloudinary + Vision AI Uploader (NOW ONLY SHOWS IN EDIT MODE) 👇 */}
+          {/* Cloudinary Uploader */}
           {isEditing && (
             <div className="mb-6">
-              <ImageUploader
-                patientId={securePatientId}
-                currentImages={patient.images || []}
+              <ImageUploader 
+                patientId={securePatientId} 
+                currentImages={patient.images || []} // 👈 Sends existing images to the uploader
                 onImageProcessed={(returnedData) => {
-                  const freshPatient =
-                    returnedData?.patient || returnedData?.data || returnedData;
-                  onPatientUpdate({
+                  const freshPatient = returnedData?.patient || returnedData?.data || returnedData;
+                  const newPatientInfo = {
                     ...patient,
                     ...freshPatient,
                     id: securePatientId,
-                    assignedDoctor: patient.assignedDoctor,
-                  });
-                }}
+                    assignedDoctor: patient.assignedDoctor
+                  };
+                  
+                  // 1. Update the UI
+                  onPatientUpdate(newPatientInfo);
+                  
+                  // 2. 👇 CRITICAL FIX: Update the edit form so "Save" doesn't overwrite MongoDB! 👇
+                  setEditedData((prev) => ({
+                    ...prev,
+                    images: newPatientInfo.images || []
+                  }));
+                }} 
               />
             </div>
           )}
@@ -604,16 +669,51 @@ const handleReassignDoctor = async (newDoctorId) => {
               </div>
             )}
 
-          {/* AI Image Analysis Results */}
-          {patient.aiImageAnalysis && (
-            <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
-              <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center">
-                <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary
-                Analysis
-              </h3>
-              <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap">
-                {patient.aiImageAnalysis}
-              </p>
+          {/* 👇 AI Image Analysis Results & Trigger Button 👇 */}
+          {/* ONLY show this section if the patient has saved images in the DB */}
+          {patient.images?.length > 0 && (
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 flex items-center">
+                  <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary Analysis
+                </h3>
+                
+                {/* 👇 The Button ONLY appears when NOT editing (after saving) 👇 */}
+                {!isEditing && (
+                  <Button 
+                    onClick={handleAnalyzeImages} 
+                    disabled={isAnalyzingImages}
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                  >
+                    {isAnalyzingImages ? (
+                      <span className="flex items-center">
+                        <Brain className="h-4 w-4 mr-2 animate-pulse" /> Analyzing Gallery...
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <Brain className="h-4 w-4 mr-2" /> Run AI on Gallery
+                      </span>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              {/* Display the results if they exist */}
+              {patient.aiImageAnalysis ? (
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+                  <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap leading-relaxed">
+                    {patient.aiImageAnalysis}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 text-center">
+                  <Brain className="h-8 w-8 text-gray-400 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No AI analysis generated yet. Click "Run AI on Gallery" to analyze the saved images above.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

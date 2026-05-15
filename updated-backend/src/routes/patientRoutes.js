@@ -102,41 +102,20 @@ router.get("/:id", async (req, res) => {
 });
 
 // PUT /api/patients/:id - Update an existing patient
-router.put("/:id", async (req, res) => {
+// PUT /api/patients/:id
+router.put('/:id', async (req, res) => {
   try {
-    const sanitizedBody = {
-      ...req.body,
-    };
+    // ❌ Delete any code here that maps or alters req.body.images! ❌
 
-    if (req.body.images) {
-      sanitizedBody.images = normalizeImages(req.body.images);
-    }
-
-    // Find the patient by ID and update with the new data from req.body
     const updatedPatient = await Patient.findByIdAndUpdate(
       req.params.id,
-      { $set: sanitizedBody },
-      { new: true }, // This tells Mongoose to return the updated document
-    ).populate(
-      "assignedDoctor",
-      "fullName specialization currentHospitalClinic",
-    );
+      req.body, // Just pass the exact JSON from the frontend
+      { new: true }
+    ).populate('assignedDoctor');
 
-    if (!updatedPatient) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Patient not found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Patient updated successfully",
-      patient: updatedPatient,
-    });
+    res.status(200).json({ success: true, patient: updatedPatient });
   } catch (error) {
-    console.error("Error updating patient:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 module.exports = router;

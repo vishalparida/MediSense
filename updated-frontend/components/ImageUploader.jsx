@@ -3,16 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Upload, Image as ImageIcon, Sparkles, AlertCircle } from "lucide-react"
+import { Upload, Image as ImageIcon, AlertCircle } from "lucide-react"
 
-// 👇 REPLACE THESE WITH YOUR CLOUDINARY DETAILS 👇
+// 👇 Keep your Cloudinary details here 👇
 const CLOUD_NAME = "duirosoxe"; 
 const UPLOAD_PRESET = "medisense";
 
-// 👇 FIX: Notice 'currentImages = []' is now safely declared in the props 👇
 export default function ImageUploader({ patientId, currentImages = [], onImageProcessed }) {
   const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState("");
 
   const handleFileUpload = async (event) => {
@@ -37,34 +35,15 @@ export default function ImageUploader({ patientId, currentImages = [], onImagePr
       if (!cloudinaryRes.ok) throw new Error("Failed to upload image to Cloudinary");
       
       const secureUrl = cloudinaryData.secure_url;
+      // 👇 FIX: Extract only the raw string URLs from any old mock data 👇
+      const cleanOldImages = (currentImages || []).map(img => typeof img === 'string' ? img : img?.url).filter(Boolean);
+      const updatedImagesList = [...cleanOldImages, secureUrl];
 
-      // PHASE 2: Send URL to Backend AI for Analysis
-      setIsUploading(false);
-      setIsAnalyzing(true);
-
-      const aiRes = await fetch("http://localhost:5000/api/ai/analyze-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: secureUrl })
-      });
-      const aiData = await aiRes.json();
-      
-      if (!aiRes.ok) throw new Error("AI Analysis failed");
-
-      const aiAnalysis = aiData.analysis;
-
-      // 👇 FIX: Combine old images with the new Cloudinary URL 👇
-      const updatedImagesList = [...currentImages, secureUrl];
-
-      // PHASE 3: Save URL and Analysis to MongoDB Patient Record
+      // PHASE 2: Save ONLY the URL array to MongoDB Patient Record
       const updateRes = await fetch(`http://localhost:5000/api/patients/${patientId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        // 👇 FIX: Send standard JSON arrays to MongoDB 👇
-        body: JSON.stringify({ 
-          images: updatedImagesList,
-          aiImageAnalysis: aiAnalysis
-        })
+        body: JSON.stringify({ images: updatedImagesList })
       });
 
       const updateData = await updateRes.json();
@@ -76,26 +55,19 @@ export default function ImageUploader({ patientId, currentImages = [], onImagePr
 
     } catch (err) {
       console.error(err);
-      setError(err.message || "Something went wrong during upload/analysis.");
+      setError(err.message || "Something went wrong during upload.");
     } finally {
       setIsUploading(false);
-      setIsAnalyzing(false);
     }
   };
 
   return (
     <Card className="border-dashed border-2 border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
       <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-        
         {isUploading ? (
           <div className="flex flex-col items-center text-blue-600">
             <Upload className="h-10 w-10 animate-bounce mb-2" />
             <p className="font-medium">Uploading to secure cloud...</p>
-          </div>
-        ) : isAnalyzing ? (
-          <div className="flex flex-col items-center text-purple-600">
-            <Sparkles className="h-10 w-10 animate-pulse mb-2" />
-            <p className="font-medium">Vision AI is analyzing the scan...</p>
           </div>
         ) : (
           <>
@@ -104,7 +76,7 @@ export default function ImageUploader({ patientId, currentImages = [], onImagePr
               Upload Medical Scan
             </h3>
             <p className="text-sm text-gray-500 mb-4 max-w-xs">
-              Upload X-Rays, MRIs, or clinical photos. Our Vision AI will automatically analyze the image for the doctor.
+              Upload an image to add it to the patient's medical gallery.
             </p>
             
             <div className="relative">
@@ -113,7 +85,7 @@ export default function ImageUploader({ patientId, currentImages = [], onImagePr
                 accept="image/*" 
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                disabled={isUploading || isAnalyzing}
+                disabled={isUploading}
               />
               <Button className="bg-blue-600 hover:bg-blue-700 pointer-events-none">
                 <Upload className="h-4 w-4 mr-2" />
