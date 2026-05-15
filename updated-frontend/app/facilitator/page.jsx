@@ -112,42 +112,42 @@ export default function FacilitatorDashboard() {
     fetchDatabaseData();
   }, []);
 
-  // 3. Mock Interval for Doctor Responses (Keep this for UI testing)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPatients((prev) => {
-        const awaitingPatients = prev.filter((p) => p.status === "awaiting_doctor")
-        if (awaitingPatients.length > 0 && Math.random() > 0.95) {
-          const randomPatient = awaitingPatients[Math.floor(Math.random() * awaitingPatients.length)]
-          const newStatus = Math.random() > 0.5 ? "video_scheduled" : "completed"
+  // // 3. Mock Interval for Doctor Responses (Keep this for UI testing)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setPatients((prev) => {
+  //       const awaitingPatients = prev.filter((p) => p.status === "awaiting_doctor")
+  //       if (awaitingPatients.length > 0 && Math.random() > 0.95) {
+  //         const randomPatient = awaitingPatients[Math.floor(Math.random() * awaitingPatients.length)]
+  //         const newStatus = Math.random() > 0.5 ? "video_scheduled" : "completed"
 
-          return prev.map((p) =>
-            p.id === randomPatient.id
-              ? {
-                  ...p,
-                  status: newStatus,
-                  doctorResponse: {
-                    ...p.doctorResponse,
-                    timestamp: new Date().toISOString(),
-                    action: newStatus === "video_scheduled" ? "request_video" : "prescription_given",
-                    ...(newStatus === "video_scheduled" && {
-                      videoScheduled: {
-                        date: new Date().toISOString().split("T")[0],
-                        time: "14:00",
-                        joinUrl: `https://meet.medisense.com/room/${p.id}-consultation`,
-                      },
-                    }),
-                  },
-                }
-              : p,
-          )
-        }
-        return prev
-      })
-    }, 10000)
+  //         return prev.map((p) =>
+  //           p.id === randomPatient.id
+  //             ? {
+  //                 ...p,
+  //                 status: newStatus,
+  //                 doctorResponse: {
+  //                   ...p.doctorResponse,
+  //                   timestamp: new Date().toISOString(),
+  //                   action: newStatus === "video_scheduled" ? "request_video" : "prescription_given",
+  //                   ...(newStatus === "video_scheduled" && {
+  //                     videoScheduled: {
+  //                       date: new Date().toISOString().split("T")[0],
+  //                       time: "14:00",
+  //                       joinUrl: `https://meet.medisense.com/room/${p.id}-consultation`,
+  //                     },
+  //                   }),
+  //                 },
+  //               }
+  //             : p,
+  //         )
+  //       }
+  //       return prev
+  //     })
+  //   }, 10000)
 
-    return () => clearInterval(interval)
-  }, [])
+  //   return () => clearInterval(interval)
+  // }, [])
 
   const handlePatientSelect = (patient) => {
     setSelectedPatient(patient)
