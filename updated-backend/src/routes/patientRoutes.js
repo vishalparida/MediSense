@@ -29,23 +29,6 @@ router.get("/", async (req, res) => {
   }
 }); 
 
-const normalizeImages = (images) => {
-  if (!Array.isArray(images)) return [];
-  return images
-    .map((img) => {
-      if (typeof img === "string") {
-        return { url: img, label: "Uploaded Image" };
-      }
-      if (typeof img === "object" && img !== null) {
-        return {
-          url: img.url || img.value || "",
-          label: img.label || "Uploaded Image",
-        };
-      }
-      return { url: String(img), label: "Uploaded Image" };
-    })
-    .filter((img) => img.url);
-};
 
 // POST /api/patients - Create a new patient
 router.post("/", async (req, res) => {
@@ -60,12 +43,14 @@ router.post("/", async (req, res) => {
       state: req.body.state,
       symptoms: req.body.symptoms,
       medicalHistory: req.body.medicalHistory,
-      images: normalizeImages(req.body.images),
+      images: req.body.images,
       aiSummary: req.body.aiSummary,
       assignedDoctor: req.body.assignedDoctor,
       createdBy: req.body.createdBy,
       status: "awaiting_doctor",
-      priority: "Medium",
+      
+      // 👇 FIX: Use the dynamic priority from the frontend, default to Medium if missing
+      priority: req.body.priority || "Medium", 
     });
 
     const savedPatient = await newPatient.save();
@@ -80,7 +65,6 @@ router.post("/", async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 // GET /api/patients/:id - Fetch a single patient by ID
 router.get("/:id", async (req, res) => {
   try {

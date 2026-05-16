@@ -29,6 +29,10 @@ import {
   Trash2,
 } from "lucide-react";
 
+// 👇 ADD YOUR CLOUDINARY DETAILS HERE 👇
+const CLOUD_NAME = "duirosoxe"; 
+const UPLOAD_PRESET = "medisense";
+
 const formatReportText = (text) => {
   if (!text) return null;
   return text.split("\n").map((line, lineIndex) => {
@@ -67,6 +71,9 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     images: [],
   });
 
+  // 👇 NEW STATE: Tracks when images are uploading to Cloudinary
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [aiReport, setAiReport] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState("");
@@ -81,7 +88,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
   const saveDraft = (draft) => {
     if (typeof window === "undefined") return;
 
-    // Check if draft has meaningful content
     const hasContent =
       draft?.formData &&
       (draft.formData.name?.trim() ||
@@ -100,7 +106,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
     } else {
-      // If no meaningful content, clear draft and set hasDraft to false
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
     }
@@ -118,7 +123,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     if (confirmed) {
       clearDraft();
       setHasDraft(false);
-      // Reset form to initial state
       setFormData({
         name: "",
         age: "",
@@ -134,7 +138,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       setAiReport("");
       setSelectedDoctor("");
       setShowDoctorSelection(false);
-      // Dispatch storage event to notify other components
       window.dispatchEvent(
         new StorageEvent("storage", {
           key: DRAFT_KEY,
@@ -200,7 +203,8 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       formData.village.trim() !== "" &&
       formData.district.trim() !== "" &&
       formData.state !== "" &&
-      formData.symptoms.trim() !== ""
+      formData.symptoms.trim() !== "" &&
+      !isUploadingImages // 👇 Prevent AI run while still uploading
     );
   };
 
@@ -208,15 +212,47 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleImageUpload = (e) => {
+  // 👇 UPDATED: Cloudinary Upload Logic 👇
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    // Note: URL.createObjectURL creates local browser links.
-    // For a real app, you'd upload these to S3/Cloudinary first and save those URLs.
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, ...imageUrls],
-    }));
+    if (files.length === 0) return;
+
+    setIsUploadingImages(true);
+
+    try {
+      const uploadedUrls = [];
+
+      // Upload each file to Cloudinary
+      for (const file of files) {
+        const uploadData = new FormData();
+        uploadData.append("file", file);
+        uploadData.append("upload_preset", UPLOAD_PRESET);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+          method: "POST",
+          body: uploadData,
+        });
+
+        if (!res.ok) throw new Error("Failed to upload to Cloudinary");
+        
+        const data = await res.json();
+        uploadedUrls.push(data.secure_url);
+      }
+
+      // Add the new secure cloud URLs to the form state
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls],
+      }));
+
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Failed to upload images securely. Please check your connection and try again.");
+    } finally {
+      setIsUploadingImages(false);
+      // Reset the input so the user can select the same file again if they deleted it
+      e.target.value = null; 
+    }
   };
 
   const removeImage = (index) => {
@@ -263,22 +299,18 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     }
   };
 
-  // --- UPDATED: Now connects to your MongoDB Backend ---
   const sendToDoctor = async () => {
     if (!selectedDoctor) return;
 
     setIsSending(true);
 
     try {
-      // 1. Get the logged-in facilitator's ID from localStorage
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const facilitatorId = storedUser._id;
 
-      // 2. Extract severity from AI report and map to priority
-      let priority = "Medium"; // Default
+      let priority = "Medium";
       if (aiReport) {
         const report = aiReport.toLowerCase();
-        // Check for various formats of case severity
         if (
           report.includes("case severity: high") ||
           report.includes("**case severity:** high") ||
@@ -303,21 +335,16 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
         }
       }
 
-      // 3. Prepare the payload matching your Mongoose Schema
       const payload = {
         ...formData,
-        age: Number(formData.age), // Ensure age is a number
-        images: formData.images.map((img) => ({
-          url: img,
-          label: "Uploaded Image",
-        })), // Map to your imageSchema
+        age: Number(formData.age), 
+        images: formData.images, // Already clean Cloudinary strings!
         aiSummary: aiReport,
-        priority: priority, // Include AI-extracted priority
-        assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
+        priority: priority, 
+        assignedDoctor: selectedDoctor, 
         createdBy: facilitatorId,
       };
 
-      // 4. Send to backend
       const response = await fetch("http://localhost:5000/api/patients", {
         method: "POST",
         headers: {
@@ -329,7 +356,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       const data = await response.json();
 
       if (response.ok) {
-        // 👇 ADDED FIX: Find the full doctor details from the frontend array
         const selectedDoctorDetails = doctors.find(
           (doc) => doc.id === selectedDoctor,
         );
@@ -337,7 +363,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
         const newFrontendPatient = {
           ...data.patient,
           id: data.patient._id,
-          // 👇 Manually attach the full doctor object so the UI updates instantly
           assignedDoctor: selectedDoctorDetails
             ? {
                 id: selectedDoctorDetails.id,
@@ -348,13 +373,11 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             : null,
         };
 
-        // Pass the fully mapped object
         onPatientAdd(newFrontendPatient);
         setIsSending(false);
         setShowSuccess(true);
         clearDraft();
 
-        // Reset form after 2 seconds
         setTimeout(() => {
           setFormData({
             name: "",
@@ -590,9 +613,10 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             <Label>Medical Images</Label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               <div className="text-center">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                {/* 👇 Dynamic Upload Animation 👇 */}
+                <Upload className={`h-8 w-8 text-gray-400 mx-auto mb-2 ${isUploadingImages ? 'animate-bounce text-blue-500' : ''}`} />
                 <p className="text-sm text-gray-600 mb-2">
-                  Upload medical images, reports, or X-rays
+                  {isUploadingImages ? "Uploading securely to cloud..." : "Upload medical images, reports, or X-rays"}
                 </p>
                 <input
                   type="file"
@@ -601,15 +625,15 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                   onChange={handleImageUpload}
                   className="hidden"
                   id="image-upload"
+                  disabled={isUploadingImages}
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    document.getElementById("image-upload").click()
-                  }
+                  onClick={() => document.getElementById("image-upload").click()}
+                  disabled={isUploadingImages}
                 >
-                  Choose Files
+                  {isUploadingImages ? "Uploading..." : "Choose Files"}
                 </Button>
               </div>
             </div>
@@ -617,16 +641,17 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             {formData.images.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {formData.images.map((image, index) => (
-                  <div key={index} className="relative">
+                  <div key={index} className="relative group">
                     <img
                       src={image || "/placeholder.svg"}
                       alt={`Medical image ${index + 1}`}
-                      className="w-full h-24 object-cover rounded border"
+                      className="w-full h-24 object-cover rounded border transition-opacity group-hover:opacity-80"
                     />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      disabled={isUploadingImages}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -641,13 +666,18 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
             <div className="relative group">
               <Button
                 onClick={generateAIReport}
-                disabled={!isFormValid() || isGeneratingReport}
+                disabled={!isFormValid() || isGeneratingReport || isUploadingImages}
                 className="w-full"
               >
                 {isGeneratingReport ? (
                   <>
                     <Brain className="h-4 w-4 mr-2 animate-spin" />
                     Generating AI Report...
+                  </>
+                ) : isUploadingImages ? (
+                   <>
+                    <Upload className="h-4 w-4 mr-2 animate-pulse" />
+                    Waiting for Images to Upload...
                   </>
                 ) : (
                   <>
@@ -656,7 +686,7 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
                   </>
                 )}
               </Button>
-              {!isFormValid() && (
+              {!isFormValid() && !isUploadingImages && (
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
                   Please fill all required fields
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
@@ -693,7 +723,6 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-3">
-                  {/* 👇 Added safety check here 👇 */}
                   {doctors && doctors.length > 0 ? (
                     doctors.map((doctor) => (
                       <div

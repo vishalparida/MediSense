@@ -155,62 +155,72 @@ router.post("/generate-report", async (req, res) => {
 
     // Validate required fields
     if (!age || !gender || !symptoms) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Age, gender, and symptoms are required fields.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Age, gender, and symptoms are required fields.",
+      });
     }
 
     // Validate age is a positive number
     const ageNum = parseInt(age);
     if (isNaN(ageNum) || ageNum <= 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Age must be a valid positive number.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Age must be a valid positive number.",
+      });
     }
 
-    // Build image context
-    let imageContext = "";
-    if (images && images.length > 0) {
-      imageContext = `\nMedical Images Provided: ${images.length} medical image(s) uploaded for analysis.`;
-    }
-
+    // Build the strict prompt
     const prompt = `Act as a medical triage assistant. Analyze the following patient details:
     Age: ${age}
     Gender: ${gender}
     Symptoms: ${symptoms}
-    Medical History: ${medicalHistory || "None reported"}${imageContext}
+    Medical History: ${medicalHistory || "None reported"}
 
-    Provide exactly the following information in point wise format, with clear line breaks between each numbered point:
+    Provide exactly the following information in point-wise format, with clear line breaks between each numbered point:
     1. Case Severity: [State strictly "Low", "Medium", or "High"].
     2. A concise summary of the patient profile, current symptoms, and medical history along with possible initial diagnosis about what you think the problem might be.
     3. Suggest probable causes or diseases based on the symptoms and history along with any medical tests, diagnostics, or treatments required.
-    4. If an image was provided, include a brief analysis of the image and its implications.
+    4. Include a brief analysis of any provided medical images and their implications.
     5. Action: [State strictly "Video Consultation Required" or "Textual Triage Sufficient"].
+    
     CRITICAL RULES:
-    - Do NOT use any Markdown formatting or asterisks`;
+    - Do NOT use any Markdown formatting or asterisks natively in your output.`;
 
-    // Call Groq using the upgraded Llama 3.1 model
+    // 👇 FIX 1: Format the payload for Groq Vision 👇
+    // Groq Vision requires an array mixing text and image URLs
+    const messageContent = [
+      { type: "text", text: prompt }
+    ];
+
+    // If images exist, push each Cloudinary URL into the Vision array
+    if (images && Array.isArray(images) && images.length > 0) {
+      images.forEach((imgUrl) => {
+        messageContent.push({
+          type: "image_url",
+          image_url: { 
+            url: imgUrl 
+          }
+        });
+      });
+    }
+
+    // 👇 FIX 2: Call Groq using the Llama 3.2 Vision model 👇
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
           role: "user",
-          content: prompt,
+          content: messageContent, // Pass the mixed text/image array
         },
       ],
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.2-11b-vision-preview", // upgraded to the Vision model!
       temperature: 0.2,
     });
 
-    let report =
-      chatCompletion.choices[0]?.message?.content || "Failed to generate text.";
+    let report = chatCompletion.choices[0]?.message?.content || "Failed to generate text.";
 
     // Format the response: bold Case Severity and Action, ensure newlines
+    // (This works perfectly with your React frontend's parser!)
     report = report.replace(/Case Severity:/g, "**Case Severity:**");
     report = report.replace(/Action:/g, "**Action:**");
 
@@ -223,9 +233,7 @@ router.post("/generate-report", async (req, res) => {
     });
   } catch (error) {
     console.error("AI Generation Error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to generate AI report" });
+    res.status(500).json({ success: false, message: "Failed to generate AI report" });
   }
 });
 
