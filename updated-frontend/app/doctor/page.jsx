@@ -337,17 +337,6 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            {/* 👇 Disabled Select if locked 👇 */}
-            <Select disabled={isLocked} value={patient.priority} onValueChange={(value) => onUpdatePriority(patient.id, value)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="High">High Priority</SelectItem>
-                <SelectItem value="Medium">Medium Priority</SelectItem>
-                <SelectItem value="Low">Low Priority</SelectItem>
-              </SelectContent>
-            </Select>
             <Badge
               className={`${
                 patient.status === "awaiting_doctor"

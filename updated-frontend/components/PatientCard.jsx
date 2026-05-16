@@ -137,9 +137,9 @@ export default function PatientCard({ patient, isSelected, onClick }) {
         <div className="mt-2 pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground">
             Dr.{" "}
-            {(patient.assignedDoctor?.name || "").replace(/^Dr\.\s*/i, "") ||
+            {(patient.assignedDoctor?.fullName || "").replace(/^Dr\.\s*/i, "") ||
               "Assigned"}{" "}
-            • {patient.assignedDoctor?.specialty || "Specialist"}
+            • {patient.assignedDoctor?.specialization || "Specialist"}
           </p>
         </div>
       )}
