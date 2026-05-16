@@ -19,14 +19,15 @@ const patientSchema = new mongoose.Schema(
     state: String,
     symptoms: { type: String, required: true },
     medicalHistory: String,
-    images: {
-      type: [imageSchema],
-      default: [],
-    },
-    aiImageAnalysis: {
-      type: String,
-      default: null,
-    },
+    // Add these inside your Patient Schema
+  images: {
+    type: [String], // Array of Cloudinary URLs
+    default: []
+  },
+  aiImageAnalysis: {
+    type: String,   // The diagnosis returned by the Vision AI
+    default: null
+  },
     status: {
       type: String,
       enum: ["awaiting_doctor", "video_scheduled", "completed"],

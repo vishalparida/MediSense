@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings, Brain } from "lucide-react"
+// 👇 Added Lock and Unlock icons 👇
+import { Stethoscope, Video, FileText, LogOut, Heart, User, ChevronDown, Settings, Brain, CheckCircle, Lock, Unlock } from "lucide-react"
 import NotificationSystem from "@/components/NotificationSystem"
 import PatientQueue from "@/components/PatientQueue"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -34,7 +35,6 @@ export default function DoctorDashboard() {
     avatar: "/doctor-avatar.png",
   })
 
-  // Fetch Doctor Info AND Assigned Patients
   useEffect(() => {
     const fetchDashboardData = async () => {
       const storedUser = localStorage.getItem("user");
@@ -47,7 +47,6 @@ export default function DoctorDashboard() {
       try {
         const user = JSON.parse(storedUser);
         
-        // 1. Set Doctor Info
         setDoctorInfo({
           name: user.fullName || "Doctor",
           specialty: user.specialization || "General Medicine",
@@ -55,7 +54,6 @@ export default function DoctorDashboard() {
           avatar: "/doctor-avatar.png",
         });
 
-        // 2. Fetch real patients assigned to this doctor from the backend
         const response = await fetch(`http://localhost:5000/api/patients?doctorId=${user._id}`);
         const data = await response.json();
 
@@ -80,7 +78,6 @@ export default function DoctorDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Database Save Helper
   const savePatientUpdateToDB = async (patientId, updateData) => {
     try {
       const response = await fetch(`http://localhost:5000/api/patients/${patientId}`, {
@@ -144,13 +141,14 @@ export default function DoctorDashboard() {
   }
 
   const scheduleVideoCall = (patientId, date, time) => {
-    // Generate a unique, secure, and WORKING video room link instantly
     const uniqueRoomId = `MediSense-Consult-${patientId}-${Date.now().toString().slice(-4)}`;
     const workingVideoLink = `https://meet.jit.si/${uniqueRoomId}`;
 
+    const currentPatient = patients.find(p => p.id === patientId);
+
     const response = {
+      ...currentPatient?.doctorResponse,
       action: "request_video",
-      notes: "Video consultation scheduled for detailed examination.",
       videoScheduled: {
         date,
         time,
@@ -159,18 +157,34 @@ export default function DoctorDashboard() {
       timestamp: new Date().toISOString(),
     }
     
-    // This calls the function we built earlier to save it to MongoDB!
     updatePatientStatus(patientId, "video_scheduled", response)
   }
 
-  const providePrescription = (patientId, prescription, notes) => {
+  const providePrescription = (patientId, prescription, notes, isFinalSubmit = false) => {
+    const currentPatient = patients.find(p => p.id === patientId);
+    
     const response = {
-      action: "prescription",
+      ...currentPatient?.doctorResponse, 
+      action: isFinalSubmit ? "prescription" : (currentPatient?.doctorResponse?.action || "draft"),
       prescription,
       notes,
       timestamp: new Date().toISOString(),
     }
-    updatePatientStatus(patientId, "completed", response)
+    
+    let finalStatus = currentPatient.status; 
+    if (isFinalSubmit) {
+      finalStatus = "completed";
+    }
+    
+    updatePatientStatus(patientId, finalStatus, response)
+  }
+
+  // 👇 NEW: Function to handle reopening a completed case 👇
+  const handleReopenCase = (patientId) => {
+    const currentPatient = patients.find(p => p.id === patientId);
+    // If they had a video link stored, revert to video_scheduled. Otherwise, awaiting_doctor.
+    const revertStatus = currentPatient?.doctorResponse?.videoScheduled ? "video_scheduled" : "awaiting_doctor";
+    updatePatientStatus(patientId, revertStatus, currentPatient?.doctorResponse);
   }
 
   const handleLogout = () => {
@@ -199,7 +213,6 @@ export default function DoctorDashboard() {
 
               <div className="flex items-center space-x-4">
                 <NotificationSystem patients={patients} />
-
                 <ThemeToggle />
 
                 <div className="relative">
@@ -220,25 +233,16 @@ export default function DoctorDashboard() {
                   {showProfileMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
                       <div className="py-1">
-                        <button
-                          onClick={() => setShowProfileMenu(false)}
-                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
-                        >
+                        <button onClick={() => setShowProfileMenu(false)} className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent">
                           <User className="h-4 w-4" />
                           <span>View Profile</span>
                         </button>
-                        <button
-                          onClick={() => setShowProfileMenu(false)}
-                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
-                        >
+                        <button onClick={() => setShowProfileMenu(false)} className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-accent">
                           <Settings className="h-4 w-4" />
                           <span>Settings</span>
                         </button>
                         <hr className="my-1 border-border" />
-                        <button
-                          onClick={handleLogout}
-                          className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
-                        >
+                        <button onClick={handleLogout} className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20">
                           <LogOut className="h-4 w-4" />
                           <span>Logout</span>
                         </button>
@@ -252,19 +256,19 @@ export default function DoctorDashboard() {
         </header>
 
         <div className="flex">
-          {/* Patient List Sidebar */}
           <div className="w-1/3 bg-card border-r border-border h-screen">
             <PatientQueue patients={patients} selectedPatient={selectedPatient} onPatientSelect={setSelectedPatient} />
           </div>
 
-          {/* Patient Details Panel */}
           <div className="flex-1 p-6">
             {selectedPatient ? (
               <PatientDetailsPanel
+                key={selectedPatient.id}
                 patient={selectedPatient}
                 onUpdatePriority={updatePatientPriority}
                 onScheduleVideo={scheduleVideoCall}
                 onProvidePrescription={providePrescription}
+                onReopenCase={handleReopenCase} // Pass the reopen function down
               />
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -284,19 +288,26 @@ export default function DoctorDashboard() {
   )
 }
 
-function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onProvidePrescription }) {
+function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onProvidePrescription, onReopenCase }) {
   const [activeTab, setActiveTab] = useState("details")
-  const [prescription, setPrescription] = useState("")
-  const [notes, setNotes] = useState("")
+  
+  const [prescription, setPrescription] = useState(patient.doctorResponse?.prescription || "")
+  const [notes, setNotes] = useState(patient.doctorResponse?.notes || "")
+  
   const [videoDate, setVideoDate] = useState("")
   const [videoTime, setVideoTime] = useState("")
 
-  const handlePrescriptionSubmit = () => {
-    if (prescription.trim()) {
-      onProvidePrescription(patient.id, prescription, notes)
-      setPrescription("")
-      setNotes("")
+  // 👇 NEW: Check if the case is completed to lock the UI
+  const isLocked = patient.status === "completed"
+
+  const handleSaveDraft = () => {
+    if (prescription.trim() || notes.trim()) {
+      onProvidePrescription(patient.id, prescription, notes, false)
     }
+  }
+
+  const handleFinalSubmit = () => {
+    onProvidePrescription(patient.id, prescription, notes, true)
   }
 
   const handleVideoSchedule = () => {
@@ -309,6 +320,14 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
 
   return (
     <div className="max-w-4xl">
+      {/* 👇 NEW: Lock Banner 👇 */}
+      {isLocked && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300 p-3 rounded-md mb-6 flex items-center shadow-sm">
+          <Lock className="h-4 w-4 mr-2" />
+          <span className="text-sm font-medium">This case is marked as completed and is currently locked. Reopen the case to make changes.</span>
+        </div>
+      )}
+
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -318,7 +337,8 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            <Select value={patient.priority} onValueChange={(value) => onUpdatePriority(patient.id, value)}>
+            {/* 👇 Disabled Select if locked 👇 */}
+            <Select disabled={isLocked} value={patient.priority} onValueChange={(value) => onUpdatePriority(patient.id, value)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -341,6 +361,19 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
               {patient.status === "video_scheduled" && "Video Scheduled"}
               {patient.status === "completed" && "Completed"}
             </Badge>
+
+            {/* Render Complete Button OR Reopen Button based on lock state */}
+            {!isLocked ? (
+              <Button onClick={handleFinalSubmit} className="bg-green-600 hover:bg-green-700 text-white ml-2">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Mark Case Complete
+              </Button>
+            ) : (
+              <Button onClick={() => onReopenCase(patient.id)} variant="outline" className="border-yellow-600 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 ml-2">
+                <Unlock className="h-4 w-4 mr-2" />
+                Reopen Case
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -387,7 +420,6 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
                 <p className="text-foreground mt-1 whitespace-pre-wrap">{patient.aiSummary}</p>
               </div>
 
-              {/* 👇 NEW: Image Gallery and AI Vision Analysis for the Doctor 👇 */}
               {patient.images && patient.images.length > 0 && (
                 <div className="pt-4 mt-4 border-t border-border">
                   <Label className="text-sm font-medium text-muted-foreground mb-3 block">Patient Medical Scans</Label>
@@ -426,19 +458,38 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
           <Card>
             <CardHeader>
               <CardTitle>Doctor Response</CardTitle>
-              <CardDescription>Provide your medical assessment and recommendations</CardDescription>
+              <CardDescription>Provide your clinical notes and assessment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="notes">Clinical Notes</Label>
+                {/* 👇 Disabled Textarea if locked 👇 */}
                 <Textarea
+                  disabled={isLocked}
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter your clinical assessment, diagnosis, and recommendations..."
-                  rows={4}
+                  rows={6}
                 />
               </div>
+              
+              {/* 👇 Disabled Save Button if locked 👇 */}
+              {!isLocked && (
+                <Button onClick={handleSaveDraft} disabled={!notes.trim()} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Save Notes (Draft)
+                </Button>
+              )}
+
+              {patient.doctorResponse?.notes && (
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-green-600 dark:text-green-400 flex items-center font-medium">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Notes safely saved to database
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -453,20 +504,24 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="videoDate">Date</Label>
-                  <Input id="videoDate" type="date" value={videoDate} onChange={(e) => setVideoDate(e.target.value)} />
+                  <Input disabled={isLocked} id="videoDate" type="date" value={videoDate} onChange={(e) => setVideoDate(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="videoTime">Time</Label>
-                  <Input id="videoTime" type="time" value={videoTime} onChange={(e) => setVideoTime(e.target.value)} />
+                  <Input disabled={isLocked} id="videoTime" type="time" value={videoTime} onChange={(e) => setVideoTime(e.target.value)} />
                 </div>
               </div>
-              <Button onClick={handleVideoSchedule} disabled={!videoDate || !videoTime}>
-                <Video className="h-4 w-4 mr-2" />
-                Schedule Video Consultation
-              </Button>
+              
+              {/* 👇 Disabled Button if locked 👇 */}
+              {!isLocked && (
+                <Button onClick={handleVideoSchedule} disabled={!videoDate || !videoTime}>
+                  <Video className="h-4 w-4 mr-2" />
+                  Schedule Video Consultation
+                </Button>
+              )}
 
               {patient.doctorResponse?.videoScheduled && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Scheduled Video Consultation</h4>
                   <p className="text-blue-800 dark:text-blue-200 text-sm">
                     Date: {patient.doctorResponse.videoScheduled.date} at {patient.doctorResponse.videoScheduled.time}
@@ -491,7 +546,9 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="prescription">Prescription</Label>
+                {/* 👇 Disabled Textarea if locked 👇 */}
                 <Textarea
+                  disabled={isLocked}
                   id="prescription"
                   value={prescription}
                   onChange={(e) => setPrescription(e.target.value)}
@@ -499,22 +556,24 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
                   rows={4}
                 />
               </div>
-              <Button onClick={handlePrescriptionSubmit} disabled={!prescription.trim()}>
-                <FileText className="h-4 w-4 mr-2" />
-                Submit Prescription
-              </Button>
+              
+              {/* 👇 Disabled Save Button if locked 👇 */}
+              {!isLocked && (
+                <Button onClick={handleSaveDraft} disabled={!prescription.trim()} variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Save Prescription (Draft)
+                </Button>
+              )}
 
               {patient.doctorResponse?.prescription && (
-                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2">Prescribed Treatment</h4>
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-2 flex items-center">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Prescription Saved
+                  </h4>
                   <p className="text-green-800 dark:text-green-200 text-sm whitespace-pre-line">
                     {patient.doctorResponse.prescription}
                   </p>
-                  {patient.doctorResponse.notes && (
-                    <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
-                      <p className="text-green-800 dark:text-green-200 text-sm">{patient.doctorResponse.notes}</p>
-                    </div>
-                  )}
                 </div>
               )}
             </CardContent>

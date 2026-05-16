@@ -1,32 +1,41 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import PatientQueue from "@/components/PatientQueue"
-import PatientDetail from "@/components/PatientDetail"
-import DoctorResponsePanel from "@/components/DoctorResponsePanel"
-import NewPatientForm from "@/components/NewPatientForm"
-import PatientHistory from "@/components/PatientHistory"
-import FacilitatorProfile from "@/components/FacilitatorProfile"
-import ActiveCasesOverview from "@/components/ActiveCasesOverview"
-import NotificationSystem from "@/components/NotificationSystem"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Heart, Users, FileText, History, User, ChevronDown, LogOut, Settings } from "lucide-react"
-import Link from "next/link"
-import { useAuth } from "@/context/AuthContext"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import PatientQueue from "@/components/PatientQueue";
+import PatientDetail from "@/components/PatientDetail";
+import DoctorResponsePanel from "@/components/DoctorResponsePanel";
+import NewPatientForm from "@/components/NewPatientForm";
+import PatientHistory from "@/components/PatientHistory";
+import FacilitatorProfile from "@/components/FacilitatorProfile";
+import ActiveCasesOverview from "@/components/ActiveCasesOverview";
+import NotificationSystem from "@/components/NotificationSystem";
+import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  Heart,
+  Users,
+  FileText,
+  History,
+  User,
+  ChevronDown,
+  LogOut,
+  Settings,
+} from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 export default function FacilitatorDashboard() {
   const { logout } = useAuth();
-  const router = useRouter()
-  const [patients, setPatients] = useState([])
-  const [doctors, setDoctors] = useState([])
-  const [selectedPatient, setSelectedPatient] = useState(null)
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const [facilitatorInfo, setFacilitatorInfo] = useState({})
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter();
+  const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [facilitatorInfo, setFacilitatorInfo] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Auth & Facilitator Profile Load
+  // 1. Auth & Facilitator Profile Load + Restore Previous Tab
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
@@ -40,20 +49,47 @@ export default function FacilitatorDashboard() {
       const user = JSON.parse(storedUser);
       setFacilitatorInfo({
         name: user.fullName || "Facilitator",
-        location: user.villageArea ? `${user.villageArea}, ${user.district}` : "Rural Region",
+        location: user.villageArea
+          ? `${user.villageArea}, ${user.district}`
+          : "Rural Region",
         id: user._id ? `F-${user._id.substring(0, 4).toUpperCase()}` : "F001",
-        rawId: user._id // Keep original ID for fetching
+        rawId: user._id, // Keep original ID for fetching
       });
 
-      if (localStorage.getItem("newPatientOnboardingDraft")) {
+      // Restore the tab state on page load
+      // Priority: 1) If draft exists, show onboarding tab  2) Else restore saved tab  3) Else default to dashboard
+      const hasDraft = localStorage.getItem("newPatientOnboardingDraft");
+      const savedTab = localStorage.getItem("facilitatorActiveTab");
+
+      if (hasDraft) {
         setActiveTab("onboard");
+      } else if (savedTab) {
+        setActiveTab(savedTab);
       }
+      // else stays as default "dashboard"
     } catch (error) {
       console.error("Failed to parse user data from localStorage");
     }
   }, [router]);
 
-  // 2. Fetch Real Patients and Doctors from MongoDB
+  // Save active tab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("facilitatorActiveTab", activeTab);
+  }, [activeTab]);
+
+  // 2. Listen for draft deletion to reset tab (separate effect)
+  useEffect(() => {
+    const handleDraftChange = (e) => {
+      if (e.key === "newPatientOnboardingDraft" && !e.newValue) {
+        setActiveTab("dashboard");
+      }
+    };
+
+    window.addEventListener("storage", handleDraftChange);
+    return () => window.removeEventListener("storage", handleDraftChange);
+  }, []);
+
+  // 3. Fetch Real Patients and Doctors from MongoDB
   useEffect(() => {
     const fetchDatabaseData = async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -63,7 +99,7 @@ export default function FacilitatorDashboard() {
         // Fetch BOTH patients and doctors simultaneously
         const [patientsResponse, doctorsResponse] = await Promise.all([
           fetch(`http://localhost:5000/api/patients?facilitatorId=${user._id}`),
-          fetch(`http://localhost:5000/api/doctors`)
+          fetch(`http://localhost:5000/api/doctors`),
         ]);
 
         const patientsData = await patientsResponse.json();
@@ -71,13 +107,15 @@ export default function FacilitatorDashboard() {
 
         // Map and set the Doctors
         if (doctorsData.success) {
-          const formattedDoctors = doctorsData.doctors.map(doc => ({
+          const formattedDoctors = doctorsData.doctors.map((doc) => ({
             id: doc._id,
             name: doc.fullName || "Doctor",
             specialty: doc.specialization || "General Medicine",
-            experience: doc.yearsOfExperience ? `${doc.yearsOfExperience} years` : "",
+            experience: doc.yearsOfExperience
+              ? `${doc.yearsOfExperience} years`
+              : "",
             location: doc.currentHospitalClinic || doc.city || "",
-            avatar: "/doctor-avatar.png"
+            avatar: "/doctor-avatar.png",
           }));
           setDoctors(formattedDoctors);
           console.log("Fetched Doctors:", formattedDoctors);
@@ -85,16 +123,18 @@ export default function FacilitatorDashboard() {
 
         // Map and set the Patients
         if (patientsData.success) {
-          const formattedPatients = patientsData.patients.map(p => ({
+          const formattedPatients = patientsData.patients.map((p) => ({
             ...p,
             id: p._id, // Map MongoDB _id to id
             // Map populated doctor details
-            assignedDoctor: p.assignedDoctor ? {
-              id: p.assignedDoctor._id,
-              name: p.assignedDoctor.fullName || "Doctor",
-              specialty: p.assignedDoctor.specialization || "Specialist",
-              avatar: "/doctor-avatar.png"
-            } : null
+            assignedDoctor: p.assignedDoctor
+              ? {
+                  id: p.assignedDoctor._id,
+                  name: p.assignedDoctor.fullName || "Doctor",
+                  specialty: p.assignedDoctor.specialization || "Specialist",
+                  avatar: "/doctor-avatar.png",
+                }
+              : null,
           }));
 
           setPatients(formattedPatients);
@@ -112,74 +152,86 @@ export default function FacilitatorDashboard() {
     fetchDatabaseData();
   }, []);
 
-  // 3. Mock Interval for Doctor Responses (Keep this for UI testing)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPatients((prev) => {
-        const awaitingPatients = prev.filter((p) => p.status === "awaiting_doctor")
-        if (awaitingPatients.length > 0 && Math.random() > 0.95) {
-          const randomPatient = awaitingPatients[Math.floor(Math.random() * awaitingPatients.length)]
-          const newStatus = Math.random() > 0.5 ? "video_scheduled" : "completed"
+  // // 3. Mock Interval for Doctor Responses (Keep this for UI testing)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setPatients((prev) => {
+  //       const awaitingPatients = prev.filter((p) => p.status === "awaiting_doctor")
+  //       if (awaitingPatients.length > 0 && Math.random() > 0.95) {
+  //         const randomPatient = awaitingPatients[Math.floor(Math.random() * awaitingPatients.length)]
+  //         const newStatus = Math.random() > 0.5 ? "video_scheduled" : "completed"
 
-          return prev.map((p) =>
-            p.id === randomPatient.id
-              ? {
-                  ...p,
-                  status: newStatus,
-                  doctorResponse: {
-                    ...p.doctorResponse,
-                    timestamp: new Date().toISOString(),
-                    action: newStatus === "video_scheduled" ? "request_video" : "prescription_given",
-                    ...(newStatus === "video_scheduled" && {
-                      videoScheduled: {
-                        date: new Date().toISOString().split("T")[0],
-                        time: "14:00",
-                        joinUrl: `https://meet.medisense.com/room/${p.id}-consultation`,
-                      },
-                    }),
-                  },
-                }
-              : p,
-          )
-        }
-        return prev
-      })
-    }, 10000)
+  //         return prev.map((p) =>
+  //           p.id === randomPatient.id
+  //             ? {
+  //                 ...p,
+  //                 status: newStatus,
+  //                 doctorResponse: {
+  //                   ...p.doctorResponse,
+  //                   timestamp: new Date().toISOString(),
+  //                   action: newStatus === "video_scheduled" ? "request_video" : "prescription_given",
+  //                   ...(newStatus === "video_scheduled" && {
+  //                     videoScheduled: {
+  //                       date: new Date().toISOString().split("T")[0],
+  //                       time: "14:00",
+  //                       joinUrl: `https://meet.medisense.com/room/${p.id}-consultation`,
+  //                     },
+  //                   }),
+  //                 },
+  //               }
+  //             : p,
+  //         )
+  //       }
+  //       return prev
+  //     })
+  //   }, 10000)
 
-    return () => clearInterval(interval)
-  }, [])
+  //   return () => clearInterval(interval)
+  // }, [])
 
   const handlePatientSelect = (patient) => {
-    setSelectedPatient(patient)
-  }
+    setSelectedPatient(patient);
+  };
 
   const handleStatusUpdate = (patientId, newStatus) => {
-    setPatients((prev) => prev.map((p) => (p.id === patientId ? { ...p, status: newStatus } : p)))
+    setPatients((prev) =>
+      prev.map((p) => (p.id === patientId ? { ...p, status: newStatus } : p)),
+    );
     if (selectedPatient?.id === patientId) {
-      setSelectedPatient((prev) => ({ ...prev, status: newStatus }))
+      setSelectedPatient((prev) => ({ ...prev, status: newStatus }));
     }
-  }
+  };
 
   const handlePatientAdd = (newPatient) => {
-    setPatients((prev) => [newPatient, ...prev])
-    setSelectedPatient(newPatient)
-    setActiveTab("dashboard")
-  }
+    setPatients((prev) => [newPatient, ...prev]);
+    setSelectedPatient(newPatient);
+    setActiveTab("dashboard");
+    // Also ensure draft is cleared from localStorage
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("newPatientOnboardingDraft");
+    }
+  };
 
   const handlePatientUpdate = (updatedPatient) => {
-    setPatients((prev) => prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p)))
-    setSelectedPatient(updatedPatient)
-  }
+    setPatients((prev) =>
+      prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p)),
+    );
+    setSelectedPatient(updatedPatient);
+  };
 
   const handleLogout = () => {
     logout();
     router.push("/");
-  }
+  };
 
-  const activeCases = patients.filter((p) => p.status !== "completed")
+  const activeCases = patients.filter((p) => p.status !== "completed");
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading Dashboard...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        Loading Dashboard...
+      </div>
+    );
   }
 
   return (
@@ -191,10 +243,14 @@ export default function FacilitatorDashboard() {
             <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-2">
                 <Heart className="h-8 w-8 text-blue-600" />
-                <span className="font-bold text-xl text-blue-600">MediSense</span>
+                <span className="font-bold text-xl text-blue-600">
+                  MediSense
+                </span>
               </Link>
               <span className="text-gray-300 dark:text-gray-600">|</span>
-              <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">Facilitator Dashboard</span>
+              <span className="text-lg font-semibold text-gray-700 dark:text-gray-200">
+                Facilitator Dashboard
+              </span>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -211,7 +267,9 @@ export default function FacilitatorDashboard() {
                     <p className="text-sm font-medium text-foreground">
                       {facilitatorInfo.name}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Facilitator • {facilitatorInfo.id}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Facilitator • {facilitatorInfo.id}
+                    </p>
                   </div>
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -224,8 +282,8 @@ export default function FacilitatorDashboard() {
                     <div className="py-1">
                       <button
                         onClick={() => {
-                          setActiveTab("profile")
-                          setShowProfileMenu(false)
+                          setActiveTab("profile");
+                          setShowProfileMenu(false);
                         }}
                         className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
@@ -326,7 +384,11 @@ export default function FacilitatorDashboard() {
         <div className="flex h-[calc(100vh-140px)]">
           {/* Left Panel - Patient Queue */}
           <div className="w-1/4 bg-white dark:bg-gray-800 border-r dark:border-gray-700 overflow-y-auto">
-            <PatientQueue patients={patients} selectedPatient={selectedPatient} onPatientSelect={handlePatientSelect} />
+            <PatientQueue
+              patients={patients}
+              selectedPatient={selectedPatient}
+              onPatientSelect={handlePatientSelect}
+            />
           </div>
 
           {/* Center Panel - Patient Detail */}
@@ -346,7 +408,8 @@ export default function FacilitatorDashboard() {
                     Select a patient to view details
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Choose a patient from the queue to see their information and medical history
+                    Choose a patient from the queue to see their information and
+                    medical history
                   </p>
                 </div>
               </div>
@@ -355,21 +418,32 @@ export default function FacilitatorDashboard() {
 
           {/* Right Panel - Doctor Response */}
           <div className="w-1/4 bg-white dark:bg-gray-800 border-l dark:border-gray-700 overflow-y-auto">
-            {selectedPatient && <DoctorResponsePanel patient={selectedPatient} />}
+            {selectedPatient && (
+              <DoctorResponsePanel patient={selectedPatient} />
+            )}
           </div>
         </div>
       )}
 
       {activeTab === "overview" && <ActiveCasesOverview patients={patients} />}
 
-      {activeTab === "onboard" && <NewPatientForm doctors={doctors} onPatientAdd={handlePatientAdd} />}
+      {activeTab === "onboard" && (
+        <NewPatientForm doctors={doctors} onPatientAdd={handlePatientAdd} />
+      )}
 
       {activeTab === "history" && <PatientHistory patients={patients} />}
 
-      {activeTab === "profile" && <FacilitatorProfile onLogout={handleLogout} />}
+      {activeTab === "profile" && (
+        <FacilitatorProfile onLogout={handleLogout} />
+      )}
 
       {/* Click outside to close profile menu */}
-      {showProfileMenu && <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />}
+      {showProfileMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowProfileMenu(false)}
+        />
+      )}
     </div>
-  )
+  );
 }

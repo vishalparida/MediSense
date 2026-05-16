@@ -42,6 +42,39 @@ export default function PatientCard({ patient, isSelected, onClick }) {
     }
   };
 
+  // Helper function to extract priority from AI summary
+  const extractPriority = (patient) => {
+    let priority = patient.priority || "Medium";
+    if (patient.aiSummary) {
+      const summary = patient.aiSummary.toLowerCase();
+      // Check for various formats of case severity
+      if (
+        summary.includes("case severity: high") ||
+        summary.includes("**case severity:** high") ||
+        summary.includes("severity: high") ||
+        (summary.includes("high") && summary.includes("severity"))
+      ) {
+        priority = "High";
+      } else if (
+        summary.includes("case severity: low") ||
+        summary.includes("**case severity:** low") ||
+        summary.includes("severity: low") ||
+        (summary.includes("low") && summary.includes("severity"))
+      ) {
+        priority = "Low";
+      } else if (
+        summary.includes("case severity: medium") ||
+        summary.includes("**case severity:** medium") ||
+        summary.includes("severity: medium") ||
+        (summary.includes("medium") && summary.includes("severity"))
+      ) {
+        priority = "Medium";
+      }
+    }
+    return priority;
+  };
+
+  const patientPriority = extractPriority(patient);
   const isVideoConsultationNeeded =
     patient.doctorResponse?.action === "request_video" ||
     patient.status === "video_scheduled" ||
@@ -75,9 +108,9 @@ export default function PatientCard({ patient, isSelected, onClick }) {
         </div>
         <div className="flex items-center space-x-1">
           <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(patient.priority)}`}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(patientPriority)}`}
           >
-            {patient.priority}
+            {patientPriority}
           </span>
           {isVideoConsultationNeeded && (
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 flex items-center space-x-1">
@@ -103,7 +136,10 @@ export default function PatientCard({ patient, isSelected, onClick }) {
       {patient.assignedDoctor && (
         <div className="mt-2 pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground">
-          Dr. {(patient.assignedDoctor?.name || "").replace(/^Dr\.\s*/i, "") || "Assigned"} • {patient.assignedDoctor?.specialty || "Specialist"}
+            Dr.{" "}
+            {(patient.assignedDoctor?.name || "").replace(/^Dr\.\s*/i, "") ||
+              "Assigned"}{" "}
+            • {patient.assignedDoctor?.specialty || "Specialist"}
           </p>
         </div>
       )}

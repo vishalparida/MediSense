@@ -19,7 +19,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { User, Upload, Brain, Send, X, CheckCircle } from "lucide-react";
+import {
+  User,
+  Upload,
+  Brain,
+  Send,
+  X,
+  CheckCircle,
+  Trash2,
+} from "lucide-react";
 
 const formatReportText = (text) => {
   if (!text) return null;
@@ -66,17 +74,76 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
   const [isSending, setIsSending] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const DRAFT_KEY = "newPatientOnboardingDraft";
 
   const saveDraft = (draft) => {
     if (typeof window === "undefined") return;
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+
+    // Check if draft has meaningful content
+    const hasContent =
+      draft?.formData &&
+      (draft.formData.name?.trim() ||
+        draft.formData.age ||
+        draft.formData.gender ||
+        draft.formData.phone?.trim() ||
+        draft.formData.village?.trim() ||
+        draft.formData.district?.trim() ||
+        draft.formData.state?.trim() ||
+        draft.formData.symptoms?.trim() ||
+        draft.formData.medicalHistory?.trim() ||
+        draft.aiReport?.trim() ||
+        (draft.formData.images && draft.formData.images.length > 0));
+
+    if (hasContent) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setHasDraft(true);
+    } else {
+      // If no meaningful content, clear draft and set hasDraft to false
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraft(false);
+    }
   };
 
   const clearDraft = () => {
     if (typeof window === "undefined") return;
     localStorage.removeItem(DRAFT_KEY);
+  };
+
+  const handleDeleteDraft = () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this draft? This action cannot be undone.",
+    );
+    if (confirmed) {
+      clearDraft();
+      setHasDraft(false);
+      // Reset form to initial state
+      setFormData({
+        name: "",
+        age: "",
+        gender: "",
+        phone: "",
+        village: "",
+        district: "",
+        state: "",
+        symptoms: "",
+        medicalHistory: "",
+        images: [],
+      });
+      setAiReport("");
+      setSelectedDoctor("");
+      setShowDoctorSelection(false);
+      // Dispatch storage event to notify other components
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: DRAFT_KEY,
+          oldValue: localStorage.getItem(DRAFT_KEY),
+          newValue: null,
+          storageArea: localStorage,
+        }),
+      );
+    }
   };
 
   useEffect(() => {
@@ -98,6 +165,7 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
         if (parsed?.selectedDoctor) {
           setSelectedDoctor(parsed.selectedDoctor);
         }
+        setHasDraft(true);
       } catch (error) {
         console.warn("Failed to restore onboarding draft:", error);
       }
@@ -206,7 +274,36 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const facilitatorId = storedUser._id;
 
-      // 2. Prepare the payload matching your Mongoose Schema
+      // 2. Extract severity from AI report and map to priority
+      let priority = "Medium"; // Default
+      if (aiReport) {
+        const report = aiReport.toLowerCase();
+        // Check for various formats of case severity
+        if (
+          report.includes("case severity: high") ||
+          report.includes("**case severity:** high") ||
+          report.includes("severity: high") ||
+          (report.includes("high") && report.includes("severity"))
+        ) {
+          priority = "High";
+        } else if (
+          report.includes("case severity: low") ||
+          report.includes("**case severity:** low") ||
+          report.includes("severity: low") ||
+          (report.includes("low") && report.includes("severity"))
+        ) {
+          priority = "Low";
+        } else if (
+          report.includes("case severity: medium") ||
+          report.includes("**case severity:** medium") ||
+          report.includes("severity: medium") ||
+          (report.includes("medium") && report.includes("severity"))
+        ) {
+          priority = "Medium";
+        }
+      }
+
+      // 3. Prepare the payload matching your Mongoose Schema
       const payload = {
         ...formData,
         age: Number(formData.age), // Ensure age is a number
@@ -215,11 +312,12 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
           label: "Uploaded Image",
         })), // Map to your imageSchema
         aiSummary: aiReport,
+        priority: priority, // Include AI-extracted priority
         assignedDoctor: selectedDoctor, // Assuming selectedDoctor is the MongoDB _id of the doctor
         createdBy: facilitatorId,
       };
 
-      // 3. Send to backend
+      // 4. Send to backend
       const response = await fetch("http://localhost:5000/api/patients", {
         method: "POST",
         headers: {
@@ -341,10 +439,24 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
     <div className="max-w-4xl mx-auto p-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <User className="h-6 w-6 text-blue-600" />
-            <span>New Patient Onboarding</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <User className="h-6 w-6 text-blue-600" />
+              <span>New Patient Onboarding</span>
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteDraft}
+              disabled={!hasDraft}
+              className={`text-red-600 hover:text-red-700 hover:bg-red-50 ${
+                !hasDraft ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              title="Delete this draft"
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </div>
           <CardDescription>
             Fill in the patient details and generate an AI report for doctor
             consultation
