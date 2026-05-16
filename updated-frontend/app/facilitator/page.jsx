@@ -11,6 +11,7 @@ import FacilitatorProfile from "@/components/FacilitatorProfile";
 import ActiveCasesOverview from "@/components/ActiveCasesOverview";
 import NotificationSystem from "@/components/NotificationSystem";
 import { ThemeToggle } from "@/components/theme-toggle";
+import ProtectedRoute from "@/components/ProtectedRoute"
 import {
   Heart,
   Users,
@@ -47,6 +48,16 @@ export default function FacilitatorDashboard() {
 
     try {
       const user = JSON.parse(storedUser);
+      
+      // 👇 NEW: STRICT ROLE CHECK INTERCEPTOR 👇
+      // (Adjust "Facilitator" to "facilitator" if your DB uses lowercase!)
+      if (user.role !== "Facilitator") {
+        alert("Unauthorized Access. Redirecting...");
+        router.push("/"); // Kick doctors/patients back to home
+        return;
+      }
+      // 👆 END ROLE CHECK 👆
+
       setFacilitatorInfo({
         name: user.fullName || "Facilitator",
         location: user.villageArea
