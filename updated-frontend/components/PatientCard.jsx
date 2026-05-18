@@ -43,37 +43,21 @@ export default function PatientCard({ patient, isSelected, onClick }) {
   };
 
   // Helper function to extract priority from AI summary
+  // Helper function to extract priority from AI summary
   const extractPriority = (patient) => {
     let priority = patient.priority || "Medium";
+    
     if (patient.aiSummary) {
-      const summary = patient.aiSummary.toLowerCase();
-      // Check for various formats of case severity
-      if (
-        summary.includes("case severity: high") ||
-        summary.includes("**case severity:** high") ||
-        summary.includes("severity: high") ||
-        (summary.includes("high") && summary.includes("severity"))
-      ) {
-        priority = "High";
-      } else if (
-        summary.includes("case severity: low") ||
-        summary.includes("**case severity:** low") ||
-        summary.includes("severity: low") ||
-        (summary.includes("low") && summary.includes("severity"))
-      ) {
-        priority = "Low";
-      } else if (
-        summary.includes("case severity: medium") ||
-        summary.includes("**case severity:** medium") ||
-        summary.includes("severity: medium") ||
-        (summary.includes("medium") && summary.includes("severity"))
-      ) {
-        priority = "Medium";
+      // Safely hunt for the exact severity word
+      const match = patient.aiSummary.match(/case severity:\s*\**\s*(high|medium|low)/i);
+      
+      if (match) {
+        priority = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
       }
     }
+    
     return priority;
   };
-
   const patientPriority = extractPriority(patient);
   const isVideoConsultationNeeded =
     patient.doctorResponse?.action === "request_video" ||

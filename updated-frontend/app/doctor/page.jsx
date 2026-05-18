@@ -297,6 +297,7 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
   const [videoDate, setVideoDate] = useState("")
   const [videoTime, setVideoTime] = useState("")
 
+
   // 👇 NEW: Check if the case is completed to lock the UI
   const isLocked = patient.status === "completed"
 
@@ -305,7 +306,28 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
       onProvidePrescription(patient.id, prescription, notes, false)
     }
   }
+  // 👇 THE FIX: A bulletproof HTML injector that guarantees bold formatting 👇
+const formatReportText = (text) => {
+  if (!text) return "No summary provided.";
 
+  // 1. Safety check: If the backend accidentally double-starred (****), fix it to (**)
+  let cleanText = text.replace(/\*\*\*\*/g, "**");
+
+  // 2. Convert all **text** directly into an HTML bold tag
+  const htmlText = cleanText.replace(
+    /\*\*(.*?)\*\*/g, 
+    '<span class="font-bold text-gray-900 dark:text-gray-100">$1</span>'
+  );
+
+  // 3. Inject the HTML cleanly, preserving line breaks
+  return htmlText.split("\n").map((line, index) => (
+    <div 
+      key={index} 
+      className="mb-2 min-h-[1rem] leading-relaxed" 
+      dangerouslySetInnerHTML={{ __html: line }} 
+    />
+  ));
+};
   const handleFinalSubmit = () => {
     onProvidePrescription(patient.id, prescription, notes, true)
   }
@@ -406,7 +428,7 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
 
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">AI Medical Summary</Label>
-                <p className="text-foreground mt-1 whitespace-pre-wrap">{patient.aiSummary}</p>
+                <p className="text-foreground mt-1 whitespace-pre-wrap">{formatReportText(patient.aiSummary)}</p>
               </div>
 
               {patient.images && patient.images.length > 0 && (

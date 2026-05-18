@@ -178,14 +178,15 @@ router.post("/generate-report", async (req, res) => {
     Medical History: ${medicalHistory || "None reported"}
 
     Provide exactly the following information in point-wise format, with clear line breaks between each numbered point:
-    1. Case Severity: [State strictly "Low", "Medium", or "High"].
-    2. A concise summary of the patient profile, current symptoms, and medical history along with possible initial diagnosis about what you think the problem might be.
+    1. Write exactly "Case Severity: [State strictly "Low", "Medium", or "High"]"
+    2. A concise summary of the patient profile, current symptoms, and medical history along with possible initial diagnosis about what you think the problem might be, DO NOT write this line in the response just the matter related to it.
     3. Suggest probable causes or diseases based on the symptoms and history along with any medical tests, diagnostics, or treatments required.
     4. Include a brief analysis of any provided medical images and their implications.
     5. Action: [State strictly "Video Consultation Required" or "Textual Triage Sufficient"].
     
     CRITICAL RULES:
-    - Do NOT use any Markdown formatting or asterisks natively in your output.`;
+    - Do NOT use any Markdown formatting or asterisks natively in your output.
+    - Simply write your responses pointwise like 1, 2, 3, 4 do not include the prompt then your answer.`;
 
     // 👇 FIX 1: Format the payload for Groq Vision 👇
     // Groq Vision requires an array mixing text and image URLs
@@ -213,7 +214,7 @@ router.post("/generate-report", async (req, res) => {
           content: messageContent, // Pass the mixed text/image array
         },
       ],
-      model: "llama-3.2-11b-vision-preview", // upgraded to the Vision model!
+      model: "meta-llama/llama-4-scout-17b-16e-instruct", // upgraded to the Vision model!
       temperature: 0.2,
     });
 

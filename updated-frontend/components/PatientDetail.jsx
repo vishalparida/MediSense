@@ -27,23 +27,52 @@ import {
 } from "@/components/ui/select";
 import ImageUploader from "@/components/ImageUploader";
 
+// 👇 THE FIX: A bulletproof HTML injector that guarantees bold formatting 👇
 const formatReportText = (text) => {
-  if (!text) return null;
+  if (!text) return "No summary provided.";
+
+  // 1. Safety check: If the backend accidentally double-starred (****), fix it to (**)
+  let cleanText = text.replace(/\*\*\*\*/g, "**");
+
+  // 2. Convert all **text** directly into an HTML bold tag
+  const htmlText = cleanText.replace(
+    /\*\*(.*?)\*\*/g, 
+    '<span class="font-bold text-gray-900 dark:text-gray-100">$1</span>'
+  );
+
+  // 3. Inject the HTML cleanly, preserving line breaks
+  return htmlText.split("\n").map((line, index) => (
+    <div 
+      key={index} 
+      className="mb-2 min-h-[1rem] leading-relaxed" 
+      dangerouslySetInnerHTML={{ __html: line }} 
+    />
+  ));
+};
+
+// 👇 Add this helper to convert **text** into bold HTML 👇
+const formatMedicalSummary = (text) => {
+  if (!text) return "No summary provided.";
+  
+  // First, split the text by line breaks so the spacing looks right
   return text.split("\n").map((line, lineIndex) => {
-    if (!line.trim()) {
-      return <div key={lineIndex} className="h-2" />;
-    }
+    if (!line.trim()) return <div key={lineIndex} className="h-2" />; // Empty lines
+    
+    // Then, split each line by double asterisks
     const parts = line.split(/\*\*(.*?)\*\*/g);
+    
     return (
       <div key={lineIndex} className="mb-2">
         {parts.map((part, partIndex) => {
+          // The regex splits the array so that ODD indexes are the words inside the **stars**
           if (partIndex % 2 === 1) {
             return (
-              <span key={partIndex} className="font-bold">
+              <span key={partIndex} className="font-semibold text-gray-900 dark:text-gray-100">
                 {part}
               </span>
             );
           }
+          // EVEN indexes are just normal text
           return <span key={partIndex}>{part}</span>;
         })}
       </div>

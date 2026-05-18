@@ -33,30 +33,28 @@ import {
 const CLOUD_NAME = "duirosoxe"; 
 const UPLOAD_PRESET = "medisense";
 
+// 👇 THE FIX: A bulletproof HTML injector that guarantees bold formatting 👇
 const formatReportText = (text) => {
-  if (!text) return null;
-  return text.split("\n").map((line, lineIndex) => {
-    if (!line.trim()) {
-      return <div key={lineIndex} className="h-2" />;
-    }
-    const parts = line.split(/\*\*(.*?)\*\*/g);
-    return (
-      <div key={lineIndex} className="mb-2">
-        {parts.map((part, partIndex) => {
-          if (partIndex % 2 === 1) {
-            return (
-              <span key={partIndex} className="font-bold">
-                {part}
-              </span>
-            );
-          }
-          return <span key={partIndex}>{part}</span>;
-        })}
-      </div>
-    );
-  });
-};
+  if (!text) return "No summary provided.";
 
+  // 1. Safety check: If the backend accidentally double-starred (****), fix it to (**)
+  let cleanText = text.replace(/\*\*\*\*/g, "**");
+
+  // 2. Convert all **text** directly into an HTML bold tag
+  const htmlText = cleanText.replace(
+    /\*\*(.*?)\*\*/g, 
+    '<span class="font-bold text-gray-900 dark:text-gray-100">$1</span>'
+  );
+
+  // 3. Inject the HTML cleanly, preserving line breaks
+  return htmlText.split("\n").map((line, index) => (
+    <div 
+      key={index} 
+      className="mb-2 min-h-[1rem] leading-relaxed" 
+      dangerouslySetInnerHTML={{ __html: line }} 
+    />
+  ));
+};
 export default function NewPatientForm({ doctors, onPatientAdd }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -308,33 +306,17 @@ export default function NewPatientForm({ doctors, onPatientAdd }) {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
       const facilitatorId = storedUser._id;
 
+      // 👇 NEW, BULLETPROOF PRIORITY EXTRACTION 👇
       let priority = "Medium";
       if (aiReport) {
-        const report = aiReport.toLowerCase();
-        if (
-          report.includes("case severity: high") ||
-          report.includes("**case severity:** high") ||
-          report.includes("severity: high") ||
-          (report.includes("high") && report.includes("severity"))
-        ) {
-          priority = "High";
-        } else if (
-          report.includes("case severity: low") ||
-          report.includes("**case severity:** low") ||
-          report.includes("severity: low") ||
-          (report.includes("low") && report.includes("severity"))
-        ) {
-          priority = "Low";
-        } else if (
-          report.includes("case severity: medium") ||
-          report.includes("**case severity:** medium") ||
-          report.includes("severity: medium") ||
-          (report.includes("medium") && report.includes("severity"))
-        ) {
-          priority = "Medium";
+        // This Regex strictly looks for "Case Severity: [High/Medium/Low]" ignoring asterisks and casing
+        const match = aiReport.match(/case severity:\s*\**\s*(high|medium|low)/i);
+        
+        if (match) {
+          // Capitalize the first letter (e.g., "high" -> "High")
+          priority = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
         }
       }
-
       const payload = {
         ...formData,
         age: Number(formData.age), 
