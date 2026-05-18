@@ -36,7 +36,7 @@ const connectDB = async () => {
 connectDB();
 
 
-// ==========================================
+// ========================================== 
 // Route Imports & Mounting
 // ==========================================
 const authRoutes = require('./routes/authRoutes');

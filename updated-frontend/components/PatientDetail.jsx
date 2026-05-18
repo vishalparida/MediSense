@@ -705,7 +705,7 @@ const handleReassignDoctor = async (newDoctorId) => {
             <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 flex items-center">
-                  <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary Analysis
+                  <Brain className="h-4 w-4 mr-2" /> ML Model Preliminary Analysis
                 </h3>
                 
                 {/* 👇 The Button ONLY appears when NOT editing (after saving) 👇 */}

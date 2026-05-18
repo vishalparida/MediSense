@@ -432,7 +432,7 @@ function PatientDetailsPanel({ patient, onUpdatePriority, onScheduleVideo, onPro
               {patient.aiImageAnalysis && (
                 <div className="mt-2 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
                   <Label className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center">
-                    <Brain className="h-4 w-4 mr-2" /> Vision AI Preliminary Analysis
+                    <Brain className="h-4 w-4 mr-2" /> ML Model Preliminary Analysis
                   </Label>
                   <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap leading-relaxed">
                     {patient.aiImageAnalysis}
